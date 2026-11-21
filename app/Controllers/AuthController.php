@@ -45,14 +45,14 @@ class AuthController
         Auth::setFlash('old_email', $email);
 
         if (empty($email) || empty($password)) {
-            $msg = 'Vui lòng điền đầy đủ email và mật khẩu.';
+            $msg = 'Vui lòng điền đầy đủ tài khoản và mật khẩu.';
             Auth::setFlash('error', $msg);
             Auth::setFlash('toast', ['type' => 'warning', 'title' => 'Thiếu thông tin', 'message' => $msg]);
             header('Location: index.php?page=login');
             exit;
         }
 
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        if ($email !== 'admin' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $msg = 'Địa chỉ email không đúng định dạng.';
             Auth::setFlash('error', $msg);
             Auth::setFlash('toast', ['type' => 'warning', 'title' => 'Email không hợp lệ', 'message' => $msg]);

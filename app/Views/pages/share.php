@@ -1,11 +1,11 @@
 <section class="welcome-row">
     <div>
-        <div class="eyebrow">LÀM VIỆC CÙNG NHAU</div>
+        <div class="eyebrow">Cộng tác</div>
         <h1>Chia sẻ lịch trình</h1>
-        <p class="page-subtitle">Chia sẻ liên kết lịch trình với bạn bè, đối tác hoặc đồng nghiệp một cách an toàn.</p>
+        <p class="page-subtitle">Tạo liên kết xem lịch hoặc mời người khác theo email</p>
     </div>
     <button class="btn btn-primary-soft" id="btnOpenInviteModal">
-        <i class="fa-solid fa-user-plus me-2"></i>Mời người cùng xem lịch
+        <i class="fa-solid fa-user-plus"></i><span>Mời cộng tác</span>
     </button>
 </section>
 

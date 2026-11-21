@@ -1,27 +1,29 @@
-# Tiến Độ Dự Án: Giao Diện Lịch Cá Nhân + To-do List (UI/UX)
+# Tiến Độ Kiểm Thử Toàn Diện — Personal Calendar
 
-## 1. Tổng quan
-- Ứng dụng: Lịch cá nhân kết hợp To-do list (thuần giao diện client-side, in-memory mock data).
-- Công nghệ: HTML5, CSS3 (tokens, mobile-first, dark/light theme), JavaScript ES Modules.
-- Thư mục: `lich-todo-ui/`.
+## 1. Bản đồ hệ thống (Pha 0)
+- **Stack**: PHP 8.x MVC thuần (PDO) + MySQL 8.0.30 (`localhost`, DB `personal_calendar` — **ĐÃ XÁC NHẬN LOCAL**) + Vanilla JS + CDN (Bootstrap 5.3, FontAwesome 6.5, FullCalendar 6.1, Chart.js 4.4, SweetAlert2). Thư mục phụ: `lich-todo-ui/` (prototype tĩnh).
+- **Chạy/Kiểm**: Laragon Apache (`http://localhost/Lich_ca_nhan/`) hoặc `php -S 127.0.0.1:8080`. Lint: `php -l`. Test sẵn có: `tests/test_phase3_suite.php`.
+- **Vai trò**: `Guest` (chưa đăng nhập), `User A` (chủ sở hữu), `User B` (người khác — test IDOR). Không có role Admin riêng.
+- **Tác vụ nền / Upload / Tích hợp**: Không có cron/queue/upload/export server-side; nhắc nhở bằng JS polling `api-reminders-check` + Browser Notification API.
 
-## 2. Danh sách 13 màn hình hoàn thành
-1. **Hôm nay (`#/hom-nay`)**: Lời chào cá nhân hóa, ngày tháng định dạng tiếng Việt, thanh tiến độ công việc trong ngày, timeline dòng thời gian kết hợp sự kiện và việc có giờ, khối công việc quá hạn cảnh báo đỏ, danh sách việc không gắn giờ, nút FAB (+) thêm nhanh.
-2. **Lịch (`#/lich`)**: Chuyển đổi 4 chế độ xem Tháng / Tuần / Ngày / Danh sách; hiển thị chấm màu trạng thái theo danh mục công việc; chạm ngày mở danh sách việc/sự kiện chi tiết; lưới giờ 24h với đường kẻ thời gian thực; kéo thả đổi giờ; nút quay lại Hôm nay; lọc theo danh mục.
-3. **Danh sách việc (`#/viec`)**: Phân nhóm trực quan (Quá hạn · Hôm nay · Sắp tới · Không hạn · Đã hoàn thành dạng thu gọn); thanh tìm kiếm nhanh, lọc theo danh mục, sắp xếp theo ngày/ưu tiên/tên; thao tác tick hoàn thành tức thì, dời ngày mai, sửa, xóa với Toast Hoàn tác (Undo).
-4. **Thêm/sửa việc**: Modal trên Desktop, Bottom sheet trên Mobile; tiêu đề bắt buộc có kiểm tra hợp lệ; chọn hạn nhanh (Hôm nay / Ngày mai / Tuần sau); giờ, danh mục, độ ưu tiên; trường phụ thu gọn (ghi chú, việc con).
-5. **Chi tiết việc**: Hiển thị đầy đủ thông tin, danh sách việc con tương tác tick chọn trực tiếp, ghi chú, lịch sử thay đổi mẫu, nhân bản việc, xóa việc.
-6. **Thêm/sửa sự kiện**: Đặt tên, thời gian bắt đầu - kết thúc, tùy chọn cả ngày, địa điểm, danh mục, màu sắc, cảnh báo trực tiếp khi trùng khung giờ với sự kiện khác.
-7. **Danh mục & nhãn (`#/danh-muc`)**: Danh sách danh mục màu sắc, đếm số việc chưa xong trong từng danh mục, thêm mới, sửa tên và xóa danh mục.
-8. **Thông báo (`#/thong-bao`)**: Trung tâm thông báo nhắc việc, việc quá hạn, cảnh báo trùng lịch; các nút hoãn nhanh (+10 phút, +1 giờ, sang ngày mai) và bỏ qua.
-9. **Thống kê (`#/thong-ke`)**: Thẻ chỉ số tổng quan (số việc hoàn thành, tỷ lệ đúng hạn, chuỗi streak liên tiếp, giờ tập trung); biểu đồ cột hoàn thành các ngày trong tuần vẽ bằng SVG nội bộ; biểu đồ phân bổ công việc theo danh mục.
-10. **Tìm kiếm toàn cục (`#/tim-kiem`)**: Tìm kiếm tức thì theo từ khóa trên cả danh sách việc và sự kiện; bộ lọc nhanh Tất cả / Công việc / Sự kiện.
-11. **Cài đặt (`#/cai-dat`)**: Hồ sơ demo; chuyển đổi giao diện Sáng / Tối / Tự động; tùy chọn ngày đầu tuần, định dạng ngày/giờ; xuất file JSON dự phòng; bộ chuyển 4 trạng thái demo (Bình thường / Loading / Rỗng / Lỗi).
-12. **Đăng nhập / Đăng ký / Quên mật khẩu (`#/auth`)**: Form mẫu 3 tab; kiểm tra hợp lệ phía client; đăng nhập chuyển thẳng vào ứng dụng với dữ liệu mẫu.
-13. **Thùng rác (`#/thung-rac`)**: Quản lý danh sách việc đã xóa, khôi phục về danh sách chính, nút dọn sạch thùng rác.
+## 2. Ma trận phủ (Chức năng × Vai trò × Loại kiểm thử)
+Ký hiệu: `[-]` Chưa chạy | `[PASS]` Đạt | `[FAIL]` Có lỗi | `[N/A]` Không kiểm được.
+Loại kiểm: **1**=Happy path, **2**=Validate, **3**=State/Flow, **4**=Auth/IDOR, **5**=Concurrency, **6**=Security, **7**=Data integrity, **8**=UI/UX.
 
-## 3. Đáp ứng yêu cầu kỹ thuật & Truy cập (Accessibility)
-- **4 trạng thái bắt buộc**: Đầy đủ Skeleton Loading shimmer, Empty state với minh họa SVG + nút hành động, Error state kèm nút thử lại, và Success toast.
-- **Không backend, không DB, không thư viện ngoài, không CDN, không localStorage**: Chạy 100% in-memory, tải lại trang về trạng thái dữ liệu mẫu chuẩn ban đầu.
-- **Hệ thống Design Token**: Biến CSS chuẩn (`tokens.css`), độ tương phản WCAG AA, kích thước ô chạm tối thiểu 44px, hỗ trợ prefers-color-scheme và prefers-reduced-motion.
-- **Responsive**: Kiểm tra tối ưu không vỡ layout tại 360px (mobile), 768px (tablet), 1280px (desktop); không xuất hiện thanh cuộn ngang trang.
+| Nhóm | Module & Route/API | Vai trò | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | Trạng thái |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| Pha 1 | Static lint (`php -l`), `test_phase3_suite.php`, quét bảo mật tĩnh | N/A | PASS | - | - | - | - | FAIL | - | - | Có lỗi (DB tắt) |
+| N1 | Auth: `login`, `login-post`, `register`, `register-post`, `logout` | Guest, A | - | - | - | - | - | - | - | - | Chưa chạy |
+| N2 | Dashboard & Statistics: `dashboard`, `statistics`, chart tuần | Guest, A, B | - | - | - | - | - | - | - | - | Chưa chạy |
+| N3 | Events & Calendar: `calendar/week/month`, `api-events`, `api-event-detail/save/time/delete`, `api-search` | Guest, A, B | - | - | - | - | - | - | - | - | Chưa chạy |
+| N4 | Tasks: `tasks`, `api-tasks-list`, `api-task-detail/save/status/delete` | Guest, A, B | - | - | - | - | - | - | - | - | Chưa chạy |
+| N5 | Categories: `categories`, `api-category-save`, `api-category-delete` | Guest, A, B | - | - | - | - | - | - | - | - | Chưa chạy |
+| N6 | Notifications: `api-notifications`, `read`, `read-all`, `delete`, `delete-all`, `reminders-check`, `test` | Guest, A, B | - | - | - | - | - | - | - | - | Chưa chạy |
+| N7 | Settings, Share, Pomodoro: `settings`, `api-settings-save`, `share`, `pomodoro` | Guest, A, B | - | - | - | - | - | - | - | - | Chưa chạy |
+| Cuối A | Polling `api-reminders-check` lặp/chồng, tích hợp Browser Notification & CDN | A | - | - | - | - | - | - | - | - | Chưa chạy |
+| Cuối B | Luồng chéo End-to-End (User A + B xuyên module, đối chiếu số liệu) | A, B | - | - | - | - | - | - | - | - | Chưa chạy |
+| Cuối C | Hiệu năng & độ bền (tải lớn `[TEST]`, N+1, index, mất DB) | A | - | - | - | - | - | - | - | - | Chưa chạy |
+
+## 3. Nhật ký tiến độ
+- **2026-11-21**: Hoàn thành Pha 0 (lập bản đồ & ma trận phủ).
+- **2026-11-21**: Hoàn thành Pha 1 — `php -l` sạch (0 lỗi); `test_phase3_suite.php` chưa chạy được do MySQL Laragon đang tắt; phát hiện 5 lỗi tĩnh (2 Cao, 2 TB, 1 Thấp). Kế tiếp: **Nhóm 1 (Auth)** (cần bật MySQL Laragon trước).

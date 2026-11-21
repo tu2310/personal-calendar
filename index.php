@@ -6,6 +6,7 @@ require_once __DIR__ . '/app/Controllers/DashboardController.php';
 require_once __DIR__ . '/app/Controllers/EventController.php';
 require_once __DIR__ . '/app/Controllers/TaskController.php';
 require_once __DIR__ . '/app/Controllers/NotificationController.php';
+require_once __DIR__ . '/app/Controllers/HabitController.php';
 
 Auth::init();
 
@@ -35,6 +36,10 @@ if ($page === 'logout') {
 
 // 2. Bảo vệ tất cả các trang yêu cầu đăng nhập
 Auth::requireLogin();
+Auth::csrfToken();
+if (str_starts_with($page, 'api-') && $page !== 'api-settings-save') {
+    session_write_close();
+}
 
 // 3. Định tuyến các API JSON cho FullCalendar, Events, Tasks, Categories, Notifications
 // 3.1. Sự kiện & Lịch trình
@@ -94,6 +99,18 @@ if ($page === 'api-task-delete') {
     (new TaskController())->delete();
     exit;
 }
+if ($page === 'api-task-restore') {
+    (new TaskController())->restore();
+    exit;
+}
+if ($page === 'api-task-force-delete') {
+    (new TaskController())->forceDelete();
+    exit;
+}
+if ($page === 'api-trash-empty') {
+    (new TaskController())->emptyTrash();
+    exit;
+}
 
 // 3.4. Trung tâm thông báo & Nhắc nhở thông minh
 if ($page === 'api-notifications') {
@@ -125,17 +142,35 @@ if ($page === 'api-notifications-test') {
     exit;
 }
 
-// 3.5. Cài đặt hệ thống
+// 3.5. Thói quen (Habits)
+if ($page === 'api-habit-save') {
+    (new HabitController())->save();
+    exit;
+}
+if ($page === 'api-habit-toggle') {
+    (new HabitController())->toggle();
+    exit;
+}
+if ($page === 'api-habit-delete') {
+    (new HabitController())->delete();
+    exit;
+}
+
+// 3.6. Cài đặt hệ thống
 if ($page === 'api-settings-save') {
     (new EventController())->apiSettingsSave();
     exit;
 }
 
 // 4. Danh sách các trang hợp lệ trong hệ thống
+if ($page === 'statistics') {
+    $page = 'habits';
+}
+
 $allowed = [
-    'dashboard', 'calendar', 'week', 'month',
-    'tasks', 'categories', 'statistics', 'share',
-    'pomodoro', 'settings'
+    'dashboard', 'calendar', 'week', 'month', 'agenda',
+    'tasks', 'habits', 'share',
+    'pomodoro', 'trash', 'settings'
 ];
 
 if (!in_array($page, $allowed, true)) {
@@ -150,14 +185,14 @@ $taskController = new TaskController();
 if ($page === 'dashboard') {
     $controller = new DashboardController();
     $data = $controller->index();
-} elseif (in_array($page, ['calendar', 'week', 'month'], true)) {
+} elseif (in_array($page, ['calendar', 'week', 'month', 'agenda'], true)) {
     $data = $eventController->index();
 } elseif ($page === 'tasks') {
     $data = $taskController->index();
-} elseif ($page === 'categories') {
-    $data = $eventController->categoriesData();
-} elseif ($page === 'statistics') {
-    $data = $eventController->statisticsData();
+} elseif ($page === 'trash') {
+    $data = $taskController->trashData();
+} elseif ($page === 'habits') {
+    $data = (new HabitController())->index();
 } elseif ($page === 'settings') {
     $data = $eventController->settingsData();
 } elseif ($page === 'share') {
@@ -184,11 +219,12 @@ $pageTitles = [
     'calendar'   => 'Lịch của tôi',
     'week'       => 'Lịch tuần',
     'month'      => 'Lịch tháng',
+    'agenda'     => 'Danh sách lịch',
     'tasks'      => 'Quản lý công việc',
-    'categories' => 'Danh mục',
-    'statistics' => 'Thống kê',
+    'habits'     => 'Thói quen & Thống kê',
     'share'      => 'Chia sẻ lịch',
     'pomodoro'   => 'Pomodoro',
+    'trash'      => 'Thùng rác',
     'settings'   => 'Cài đặt'
 ];
 

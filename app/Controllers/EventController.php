@@ -71,18 +71,27 @@ class EventController
     public function statisticsData(): array
     {
         Auth::requireLogin();
+        require_once __DIR__ . '/../Models/Habit.php';
         $userId = Auth::id();
         $stats = $this->eventModel->getStats($userId);
         $weekly = $this->eventModel->getWeeklyStats($userId);
         $allEvents = $this->eventModel->allForUser($userId);
         $taskStats = $this->taskModel->getStats($userId);
 
+        $habitModel = new Habit();
+        $habits = $habitModel->allForUser($userId, 7);
+        $habitSummary = $habitModel->getSummary($habits);
+        $habitWeekly = $habitModel->getWeeklySeries($userId, 7);
+
         return [
-            'stats'      => $stats,
-            'weekly'     => $weekly,
-            'taskStats'  => $taskStats,
-            'total'      => count($allEvents),
-            'csrf_token' => Auth::csrfToken()
+            'stats'        => $stats,
+            'weekly'       => $weekly,
+            'taskStats'    => $taskStats,
+            'total'        => count($allEvents),
+            'habits'       => $habits,
+            'habitSummary' => $habitSummary,
+            'habitWeekly'  => $habitWeekly,
+            'csrf_token'   => Auth::csrfToken()
         ];
     }
 

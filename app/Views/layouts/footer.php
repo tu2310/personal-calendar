@@ -1,7 +1,7 @@
         </div>
         <footer class="page-footer">
             <span>© <?= date('Y') ?> Personal Calendar</span>
-            <span>Quản lý thời gian, làm chủ tương lai <i class="fa-solid fa-heart"></i></span>
+            <span>Lịch cá nhân &amp; quản lý công việc</span>
         </footer>
     </main>
 </div>

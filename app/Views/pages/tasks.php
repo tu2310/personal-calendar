@@ -14,30 +14,30 @@ $csrfToken = $data['csrf_token'] ?? '';
 ?>
 <section class="welcome-row">
     <div>
-        <div class="eyebrow">THEO DÕI & TỐI ƯU HIỆU SUẤT</div>
-        <h1>Quản lý công việc nâng cao</h1>
-        <p class="page-subtitle">Tổ chức nhiệm vụ thông minh, theo dõi hạn chót, mức độ ưu tiên và tiến độ hoàn thành.</p>
+        <div class="eyebrow">Danh sách công việc</div>
+        <h1>Quản lý công việc</h1>
+        <p class="page-subtitle">Theo dõi hạn chót, mức độ ưu tiên và tiến độ hoàn thành</p>
     </div>
     <div class="d-flex gap-2">
         <button class="btn btn-primary-soft" id="btnOpenAddTaskModal">
-            <i class="fa-solid fa-plus me-2"></i>Thêm công việc mới
+            <i class="fa-solid fa-plus"></i><span>Thêm công việc</span>
         </button>
     </div>
 </section>
 
 <!-- CẢNH BÁO DEADLINE QUÁ HẠN -->
-<div id="taskOverdueBanner" class="alert alert-danger d-flex align-items-center justify-content-between p-3 mb-4 rounded-3 border-danger-subtle shadow-sm" style="<?= empty($stats['overdue']) ? 'display: none !important;' : '' ?>">
+<div id="taskOverdueBanner" class="alert alert-danger d-flex align-items-center justify-content-between p-3 mb-4 rounded-3 border-danger-subtle" style="<?= empty($stats['overdue']) ? 'display: none !important;' : '' ?>">
     <div class="d-flex align-items-center gap-3">
-        <div class="rounded-circle p-2 bg-danger text-white d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
-            <i class="fa-solid fa-triangle-exclamation fs-5"></i>
+        <div class="rounded-2 p-2 bg-danger text-white d-flex align-items-center justify-content-center" style="width: 2.25rem; height: 2.25rem;">
+            <i class="fa-solid fa-triangle-exclamation"></i>
         </div>
         <div>
-            <strong class="text-danger d-block">CẢNH BÁO DEADLINE: Bạn có <span id="taskOverdueBannerNum"><?= $stats['overdue'] ?? 0 ?></span> công việc đã quá hạn!</strong>
-            <small class="text-muted">Các công việc này đã quá hạn hoàn thành quy định. Vui lòng ưu tiên xử lý ngay để đảm bảo tiến độ.</small>
+            <strong class="text-danger d-block">Có <span id="taskOverdueBannerNum"><?= $stats['overdue'] ?? 0 ?></span> công việc đã quá hạn</strong>
+            <small class="text-muted">Các công việc này đã quá hạn hoàn thành, cần ưu tiên xử lý trước</small>
         </div>
     </div>
     <button type="button" class="btn btn-sm btn-danger px-3" onclick="document.querySelector('.task-status-tab[data-status=\'overdue\']')?.click()">
-        <i class="fa-solid fa-filter me-1"></i> Xem việc quá hạn
+        Xem việc quá hạn
     </button>
 </div>
 
@@ -46,49 +46,49 @@ $csrfToken = $data['csrf_token'] ?? '';
     <div class="row align-items-center g-4">
         <div class="col-lg-5 border-end-lg">
             <div class="d-flex justify-content-between align-items-center mb-2">
-                <span class="fw-bold" style="font-size: 13px;">Tiến độ hoàn thành</span>
-                <span class="badge bg-primary px-3 py-1 fs-6" id="taskStatPercentBadge"><?= $stats['progress_percent'] ?>%</span>
+                <span class="fw-medium" style="font-size: 0.875rem;">Tiến độ hoàn thành</span>
+                <span class="fw-medium" style="font-family: var(--font-mono); font-size: 1rem; color: var(--primary);" id="taskStatPercentBadge"><?= $stats['progress_percent'] ?>%</span>
             </div>
-            <div class="progress" style="height: 12px; border-radius: 8px; background: rgba(102, 88, 232, 0.1);">
-                <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" 
+            <div class="progress" style="height: 8px; border-radius: 4px; background: var(--surface-2);">
+                <div class="progress-bar" 
                      id="taskStatProgressBar"
                      role="progressbar" 
-                     style="width: <?= $stats['progress_percent'] ?>%;" 
+                     style="width: <?= $stats['progress_percent'] ?>%; background: var(--primary);" 
                      aria-valuenow="<?= $stats['progress_percent'] ?>" 
                      aria-valuemin="0" 
                      aria-valuemax="100"></div>
             </div>
-            <div class="d-flex justify-content-between mt-2 text-muted" style="font-size: 11px;">
-                <span>Đã làm: <b class="text-success" id="taskStatCompletedCount"><?= $stats['completed'] ?></b> việc</span>
-                <span>Còn lại: <b class="text-warning" id="taskStatPendingCount"><?= $stats['pending'] ?></b> việc</span>
-                <span>Tổng: <b id="taskStatTotalCount"><?= $stats['total'] ?></b> việc</span>
+            <div class="d-flex justify-content-between mt-2 text-muted" style="font-size: 0.75rem; font-variant-numeric: tabular-nums;">
+                <span>Đã làm: <b class="text-success" id="taskStatCompletedCount"><?= $stats['completed'] ?></b></span>
+                <span>Còn lại: <b class="text-warning" id="taskStatPendingCount"><?= $stats['pending'] ?></b></span>
+                <span>Tổng: <b id="taskStatTotalCount"><?= $stats['total'] ?></b></span>
             </div>
         </div>
 
         <div class="col-lg-7">
             <div class="row g-2 text-center">
                 <div class="col-3">
-                    <div class="p-2 rounded" style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.2);">
-                        <div class="fs-4 fw-bold text-success" id="statCompletedNum"><?= $stats['completed'] ?></div>
-                        <small class="text-muted" style="font-size: 11px;">Hoàn thành</small>
+                    <div class="p-2 rounded border" style="background: var(--surface-2);">
+                        <div class="fs-4 fw-medium text-success" style="font-family: var(--font-mono);" id="statCompletedNum"><?= $stats['completed'] ?></div>
+                        <small class="text-muted" style="font-size: 0.75rem;">Hoàn thành</small>
                     </div>
                 </div>
                 <div class="col-3">
-                    <div class="p-2 rounded" style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.2);">
-                        <div class="fs-4 fw-bold text-warning" id="statPendingNum"><?= $stats['pending'] ?></div>
-                        <small class="text-muted" style="font-size: 11px;">Chờ xử lý</small>
+                    <div class="p-2 rounded border" style="background: var(--surface-2);">
+                        <div class="fs-4 fw-medium text-warning" style="font-family: var(--font-mono);" id="statPendingNum"><?= $stats['pending'] ?></div>
+                        <small class="text-muted" style="font-size: 0.75rem;">Chờ xử lý</small>
                     </div>
                 </div>
                 <div class="col-3">
-                    <div class="p-2 rounded" style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.2);">
-                        <div class="fs-4 fw-bold text-danger" id="statOverdueNum"><?= $stats['overdue'] ?></div>
-                        <small class="text-muted" style="font-size: 11px;">Quá hạn</small>
+                    <div class="p-2 rounded border" style="background: var(--surface-2);">
+                        <div class="fs-4 fw-medium text-danger" style="font-family: var(--font-mono);" id="statOverdueNum"><?= $stats['overdue'] ?></div>
+                        <small class="text-muted" style="font-size: 0.75rem;">Quá hạn</small>
                     </div>
                 </div>
                 <div class="col-3">
-                    <div class="p-2 rounded" style="background: rgba(225, 29, 72, 0.08); border: 1px solid rgba(225, 29, 72, 0.2);">
-                        <div class="fs-4 fw-bold text-danger" id="statUrgentNum"><?= $stats['urgent'] ?></div>
-                        <small class="text-muted" style="font-size: 11px;">Khẩn cấp</small>
+                    <div class="p-2 rounded border" style="background: var(--surface-2);">
+                        <div class="fs-4 fw-medium text-danger" style="font-family: var(--font-mono);" id="statUrgentNum"><?= $stats['urgent'] ?></div>
+                        <small class="text-muted" style="font-size: 0.75rem;">Khẩn cấp</small>
                     </div>
                 </div>
             </div>
@@ -103,18 +103,18 @@ $csrfToken = $data['csrf_token'] ?? '';
         <div class="col-md-4">
             <div class="input-group input-group-sm">
                 <span class="input-group-text bg-transparent border-end-0"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
-                <input type="text" class="form-control border-start-0" id="taskSearchInput" placeholder="Tìm kiếm công việc theo tên..." value="<?= htmlspecialchars($_GET['search'] ?? '') ?>">
+                <input type="text" class="form-control border-start-0" id="taskSearchInput" placeholder="Tìm công việc theo tên" value="<?= htmlspecialchars($_GET['search'] ?? '') ?>">
             </div>
         </div>
 
         <!-- Lọc theo mức độ ưu tiên -->
         <div class="col-sm-6 col-md-2">
             <select class="form-select form-select-sm" id="taskPriorityFilter">
-                <option value="all">-- Mọi mức ưu tiên --</option>
-                <option value="urgent" <?= ($_GET['priority'] ?? '') === 'urgent' ? 'selected' : '' ?>>🔥 Khẩn cấp</option>
-                <option value="high" <?= ($_GET['priority'] ?? '') === 'high' ? 'selected' : '' ?>>🔺 Cao</option>
-                <option value="medium" <?= ($_GET['priority'] ?? '') === 'medium' ? 'selected' : '' ?>>🟡 Trung bình</option>
-                <option value="low" <?= ($_GET['priority'] ?? '') === 'low' ? 'selected' : '' ?>>🟢 Thấp</option>
+                <option value="all">Mọi mức ưu tiên</option>
+                <option value="urgent" <?= ($_GET['priority'] ?? '') === 'urgent' ? 'selected' : '' ?>>Khẩn cấp</option>
+                <option value="high" <?= ($_GET['priority'] ?? '') === 'high' ? 'selected' : '' ?>>Cao</option>
+                <option value="medium" <?= ($_GET['priority'] ?? '') === 'medium' ? 'selected' : '' ?>>Trung bình</option>
+                <option value="low" <?= ($_GET['priority'] ?? '') === 'low' ? 'selected' : '' ?>>Thấp</option>
             </select>
         </div>
 

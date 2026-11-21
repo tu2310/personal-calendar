@@ -71,6 +71,7 @@ CREATE TABLE `events` (
   `reminder_minutes` int DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `deleted_at` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `fk_events_category` (`category_id`),
   KEY `idx_events_user_start` (`user_id`,`start_time`),
@@ -208,6 +209,7 @@ CREATE TABLE `tasks` (
   `due_date` date DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `deleted_at` datetime DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `fk_tasks_user` (`user_id`),
   CONSTRAINT `fk_tasks_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
@@ -241,8 +243,49 @@ CREATE TABLE `users` (
   UNIQUE KEY `email` (`email`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Dữ liệu thực tế cho bảng `users`
+-- Dữ liệu thực tế cho bảng `users` (tài khoản mặc định: admin / admin)
 INSERT INTO `users` (`id`, `name`, `email`, `password`, `avatar`, `created_at`) VALUES
-('1', 'Nguyễn Quang Tú', 'nguyentu23061981@gmail.com', '$2y$10$XwXI2eFIrzrcmYfkwlGjW.dk2NjYLKLJxjIYVTYrJzrKGAoKwoN6e', NULL, '2026-11-09 20:17:32');
+('1', 'Nguyễn Quang Tú', 'admin', '$2y$10$Vb9yK3ovIVB4CNuSd2WZt.7tCTdM32RfzlpWpojKoCML1x8JuiCua', NULL, '2026-11-09 20:17:32');
+
+-- --------------------------------------------------------
+-- Cấu trúc bảng `habits` & `habit_logs`
+-- --------------------------------------------------------
+DROP TABLE IF EXISTS `habit_logs`;
+DROP TABLE IF EXISTS `habits`;
+
+CREATE TABLE `habits` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `user_id` int unsigned NOT NULL,
+  `name` varchar(120) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `frequency` enum('daily','weekly') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'daily',
+  `target_per_week` tinyint unsigned NOT NULL DEFAULT '7',
+  `color` char(7) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '#c2410c',
+  `is_archived` tinyint(1) NOT NULL DEFAULT '0',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_habits_user` (`user_id`,`is_archived`),
+  CONSTRAINT `fk_habits_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `habit_logs` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `habit_id` int unsigned NOT NULL,
+  `user_id` int unsigned NOT NULL,
+  `log_date` date NOT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_habit_date` (`habit_id`,`log_date`),
+  KEY `idx_habit_logs_user_date` (`user_id`,`log_date`),
+  CONSTRAINT `fk_habit_logs_habit` FOREIGN KEY (`habit_id`) REFERENCES `habits` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_habit_logs_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO `habits` (`id`, `user_id`, `name`, `description`, `frequency`, `target_per_week`, `color`) VALUES
+(1, 1, 'Tập thể dục', '30 phút vận động buổi sáng', 'daily', 7, '#15803d'),
+(2, 1, 'Đọc sách', 'Ít nhất 20 phút trước khi ngủ', 'daily', 7, '#c2410c'),
+(3, 1, 'Uống đủ 2L nước', 'Chia đều trong ngày', 'daily', 7, '#2563eb'),
+(4, 1, 'Học ngoại ngữ', 'Ôn từ vựng và nghe 30 phút', 'weekly', 5, '#b45309');
 
 SET FOREIGN_KEY_CHECKS = 1;

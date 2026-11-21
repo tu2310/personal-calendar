@@ -20,128 +20,42 @@ $initial = mb_strtoupper(mb_substr($currentUserName, 0, 1, 'UTF-8'));
     <link href="public/assets/css/toast.css?v=<?= $cssToastVer ?>" rel="stylesheet">
     <link href="public/assets/css/style.css?v=<?= $cssStyleVer ?>" rel="stylesheet">
     <style>
-        /* Khóa cứng màu nền đặc cho Popover FullCalendar - Chống triệt để lỗi cache và trong suốt */
-        .fc {
-            --fc-page-bg-color: var(--surface, #ffffff) !important;
-            --fc-neutral-bg-color: var(--surface-2, #f8fafc) !important;
+        html.dark, html.dark body {
+            background: #141415;
+            color: #ededed;
         }
         .fc-theme-standard .fc-popover,
         .fc .fc-popover,
         div.fc-popover {
-            background: #ffffff !important;
-            background-color: #ffffff !important;
-            border: 1px solid #e2e8f0 !important;
-            border-radius: 14px !important;
-            box-shadow: 0 20px 45px rgba(15, 23, 42, 0.22), 0 6px 16px rgba(15, 23, 42, 0.08) !important;
+            background: var(--surface, #ffffff) !important;
+            border: 1px solid var(--line, rgba(24, 24, 27, 0.1)) !important;
+            border-radius: 12px !important;
+            box-shadow: var(--shadow-float, 0 12px 32px rgba(24, 24, 27, 0.08)) !important;
             z-index: 99999 !important;
-            overflow: hidden !important;
-            min-width: 260px !important;
-            max-width: 330px !important;
             opacity: 1 !important;
         }
         .fc-theme-standard .fc-popover-header,
         .fc .fc-popover-header {
-            background: #f8fafc !important;
-            background-color: #f8fafc !important;
-            padding: 10px 14px !important;
-            border-bottom: 1px solid #e2e8f0 !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: space-between !important;
-        }
-        .fc .fc-popover-title {
-            font-size: 13px !important;
-            font-weight: 700 !important;
-            color: #1e293b !important;
-        }
-        .fc .fc-popover-close {
-            cursor: pointer !important;
-            font-size: 15px !important;
-            color: #64748b !important;
-            padding: 3px 6px !important;
-            border-radius: 6px !important;
-            opacity: 0.8 !important;
-            line-height: 1 !important;
-        }
-        .fc .fc-popover-close:hover {
-            opacity: 1 !important;
-            color: #0f172a !important;
-            background: rgba(0, 0, 0, 0.08) !important;
+            background: var(--surface-2, #f1f0ec) !important;
+            border-bottom: 1px solid var(--line, rgba(24, 24, 27, 0.1)) !important;
         }
         .fc-theme-standard .fc-popover-body,
         .fc .fc-popover-body {
-            background: #ffffff !important;
-            background-color: #ffffff !important;
-            padding: 10px 12px !important;
-            display: flex !important;
-            flex-direction: column !important;
-            gap: 6px !important;
-            max-height: 280px !important;
-            overflow-y: auto !important;
-        }
-        .fc .fc-popover-body .fc-daygrid-event {
-            margin: 0 !important;
-            padding: 6px 10px !important;
-            border-radius: 8px !important;
-        }
-        .fc .fc-daygrid-more-link {
-            font-size: 11px !important;
-            font-weight: 700 !important;
-            color: #6658e8 !important;
-            background: rgba(102, 88, 232, 0.09) !important;
-            padding: 3px 9px !important;
-            border-radius: 6px !important;
-            text-decoration: none !important;
-            display: inline-flex !important;
-            align-items: center !important;
-            margin-top: 3px !important;
-            cursor: pointer !important;
-        }
-        .fc .fc-daygrid-more-link:hover {
-            background: #6658e8 !important;
-            color: #ffffff !important;
-        }
-        body.dark .fc {
-            --fc-page-bg-color: #1e293b !important;
-            --fc-neutral-bg-color: #0f172a !important;
-        }
-        body.dark .fc-theme-standard .fc-popover,
-        body.dark .fc .fc-popover,
-        body.dark div.fc-popover {
-            background: #1e293b !important;
-            background-color: #1e293b !important;
-            border-color: #334155 !important;
-            box-shadow: 0 20px 45px rgba(0, 0, 0, 0.6) !important;
-        }
-        body.dark .fc-theme-standard .fc-popover-header,
-        body.dark .fc .fc-popover-header {
-            background: #0f172a !important;
-            background-color: #0f172a !important;
-            border-bottom-color: #334155 !important;
-        }
-        body.dark .fc .fc-popover-title {
-            color: #f1f5f9 !important;
-        }
-        body.dark .fc .fc-popover-close:hover {
-            background: rgba(255, 255, 255, 0.1) !important;
-            color: #fff !important;
-        }
-        body.dark .fc-theme-standard .fc-popover-body,
-        body.dark .fc .fc-popover-body {
-            background: #1e293b !important;
-            background-color: #1e293b !important;
-        }
-        body.dark .fc .fc-daygrid-more-link {
-            background: rgba(102, 88, 232, 0.22) !important;
-            color: #c4b5fd !important;
-        }
-        body.dark .fc .fc-daygrid-more-link:hover {
-            background: #6658e8 !important;
-            color: #ffffff !important;
+            background: var(--surface, #ffffff) !important;
         }
     </style>
+    <script>
+        if (localStorage.getItem('personalCalendarTheme') === 'dark') {
+            document.documentElement.classList.add('dark');
+        }
+    </script>
 </head>
 <body>
+<script>
+    if (document.documentElement.classList.contains('dark')) {
+        document.body.classList.add('dark');
+    }
+</script>
 <div class="app-shell">
     <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
     <aside class="sidebar" id="sidebar">
@@ -151,23 +65,22 @@ $initial = mb_strtoupper(mb_substr($currentUserName, 0, 1, 'UTF-8'));
         </a>
         <div class="profile-mini">
             <div class="avatar"><?= htmlspecialchars($initial) ?></div>
-            <div>
-                <strong>Xin chào, <?= htmlspecialchars($currentUserName) ?>!</strong>
-                <small><span class="online-dot"></span> Đang hoạt động</small>
+            <div style="min-width:0;">
+                <strong><?= htmlspecialchars($currentUserName) ?></strong>
+                <small><span class="online-dot"></span>Đang hoạt động</small>
             </div>
         </div>
-        <div class="nav-caption">KHÔNG GIAN LÀM VIỆC</div>
+        <div class="nav-caption">Không gian làm việc</div>
         <nav class="side-nav">
             <?php
             $menus = [
-                ['dashboard', 'fa-house', 'Dashboard'],
+                ['dashboard', 'fa-house', 'Tổng quan'],
                 ['calendar', 'fa-calendar-days', 'Lịch của tôi'],
                 ['week', 'fa-calendar-week', 'Lịch tuần'],
                 ['month', 'fa-calendar', 'Lịch tháng'],
                 ['tasks', 'fa-list-check', 'Công việc'],
-                ['categories', 'fa-layer-group', 'Danh mục'],
-                ['statistics', 'fa-chart-column', 'Thống kê'],
-                ['share', 'fa-share-nodes', 'Chia sẻ lịch']
+                ['habits', 'fa-chart-column', 'Thói quen & Thống kê'],
+                ['agenda', 'fa-rectangle-list', 'Danh sách lịch']
             ];
             foreach ($menus as [$key, $icon, $label]):
             ?>
@@ -176,18 +89,12 @@ $initial = mb_strtoupper(mb_substr($currentUserName, 0, 1, 'UTF-8'));
             </a>
             <?php endforeach; ?>
         </nav>
-        <div class="nav-caption extra-caption">CÁ NHÂN</div>
+        <div class="nav-caption extra-caption">Cá nhân</div>
         <nav class="side-nav">
-            <a class="nav-link <?= $page === 'pomodoro' ? 'active' : '' ?>" href="index.php?page=pomodoro"><i class="fa-solid fa-stopwatch"></i><span>Pomodoro</span><span class="nav-new">NEW</span></a>
+            <a class="nav-link <?= $page === 'trash' ? 'active' : '' ?>" href="index.php?page=trash"><i class="fa-solid fa-trash-can"></i><span>Thùng rác</span></a>
             <a class="nav-link <?= $page === 'settings' ? 'active' : '' ?>" href="index.php?page=settings"><i class="fa-solid fa-gear"></i><span>Cài đặt</span></a>
         </nav>
         <div class="sidebar-bottom">
-            <div class="upgrade-card">
-                <div class="upgrade-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
-                <strong>Làm chủ thời gian</strong>
-                <p>Lên kế hoạch nhỏ, tạo nên kết quả lớn.</p>
-                <a href="index.php?page=calendar">Xem lịch của bạn <i class="fa-solid fa-arrow-right"></i></a>
-            </div>
             <a class="nav-link logout-link" href="index.php?page=logout" id="sidebarLogout"><i class="fa-solid fa-arrow-right-from-bracket"></i><span>Đăng xuất</span></a>
         </div>
     </aside>
@@ -197,16 +104,16 @@ $initial = mb_strtoupper(mb_substr($currentUserName, 0, 1, 'UTF-8'));
             <button class="icon-btn mobile-menu" id="mobileMenu" aria-label="Mở menu"><i class="fa-solid fa-bars"></i></button>
             <div class="search-box position-relative" id="topbarSearchBox">
                 <i class="fa-solid fa-magnifying-glass search-icon"></i>
-                <input type="text" id="topbarSearchInput" placeholder="Tìm kiếm lịch trình, công việc..." aria-label="Tìm kiếm" autocomplete="off" spellcheck="false">
+                <input type="text" id="topbarSearchInput" placeholder="Tìm lịch trình, công việc" aria-label="Tìm kiếm" autocomplete="off" spellcheck="false">
                 <button type="button" class="btn-clear-search d-none" id="btnClearSearch" title="Xóa tìm kiếm (Esc)" aria-label="Xóa từ khóa">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
-                <kbd id="searchKbdShortcut">⌘ K</kbd>
+                <kbd id="searchKbdShortcut">Ctrl K</kbd>
 
                 <!-- DROPDOWN KẾT QUẢ LIVE SEARCH -->
-                <div class="live-search-dropdown shadow-lg d-none" id="liveSearchDropdown" role="listbox" aria-label="Kết quả tìm kiếm">
+                <div class="live-search-dropdown d-none" id="liveSearchDropdown" role="listbox" aria-label="Kết quả tìm kiếm">
                     <div class="live-search-header d-flex justify-content-between align-items-center">
-                        <span class="live-search-header-title"><i class="fa-solid fa-bolt me-1 text-primary"></i> Kết quả tìm kiếm</span>
+                        <span class="live-search-header-title">Kết quả tìm kiếm</span>
                         <span class="live-search-badge" id="liveSearchCount">0 kết quả</span>
                     </div>
                     <div class="live-search-list" id="liveSearchList">
@@ -214,7 +121,7 @@ $initial = mb_strtoupper(mb_substr($currentUserName, 0, 1, 'UTF-8'));
                     </div>
                     <div class="live-search-footer d-flex justify-content-between align-items-center">
                         <span><kbd>Esc</kbd> để đóng</span>
-                        <span><i class="fa-regular fa-hand-pointer me-1"></i> Bấm để xem chi tiết</span>
+                        <span>Bấm để xem chi tiết</span>
                     </div>
                 </div>
             </div>

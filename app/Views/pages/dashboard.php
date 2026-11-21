@@ -1,25 +1,25 @@
 <section class="welcome-row">
     <div>
-        <div class="eyebrow"><span class="eyebrow-dot"></span> <?= mb_strtoupper((new IntlDateFormatter('vi_VN', IntlDateFormatter::FULL, IntlDateFormatter::NONE, null, null, 'EEEE, dd/MM/yyyy'))->format(new DateTime())) ?></div>
-        <h1>Xin chào, <?= htmlspecialchars($data['user']['name'] ?? 'Bạn') ?>! <span class="wave">👋</span></h1>
-        <p class="page-subtitle">Hãy cùng quản lý thời gian và biến hôm nay thành một ngày hiệu quả nhé.</p>
+        <div class="eyebrow"><span class="eyebrow-dot"></span><?= (new IntlDateFormatter('vi_VN', IntlDateFormatter::FULL, IntlDateFormatter::NONE, null, null, 'EEEE, dd/MM/yyyy'))->format(new DateTime()) ?></div>
+        <h1>Tổng quan hôm nay</h1>
+        <p class="page-subtitle">Lịch trình, đầu việc ưu tiên và nhịp làm việc trong ngày</p>
     </div>
-    <a class="btn btn-primary-soft" href="index.php?page=calendar&action=new"><i class="fa-solid fa-plus me-2"></i>Thêm lịch mới</a>
+    <a class="btn btn-primary-soft" href="index.php?page=calendar&action=new"><i class="fa-solid fa-plus"></i><span>Thêm lịch mới</span></a>
 </section>
 
 <?php if (!empty($data['taskStats']['overdue']) && $data['taskStats']['overdue'] > 0): ?>
-<div class="alert alert-warning d-flex align-items-center justify-content-between p-3 mb-4 rounded-3 border-warning-subtle shadow-sm" style="background: rgba(245, 158, 11, 0.08);">
+<div class="alert alert-warning d-flex align-items-center justify-content-between p-3 mb-4 rounded-3 border-warning-subtle" style="background: var(--warning-soft);">
     <div class="d-flex align-items-center gap-3">
-        <div class="rounded-circle p-2 bg-warning text-white d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
-            <i class="fa-solid fa-clock-rotate-left fs-5"></i>
+        <div class="rounded-2 d-flex align-items-center justify-content-center" style="width: 2.25rem; height: 2.25rem; background: var(--warning); color: #fff;">
+            <i class="fa-solid fa-clock-rotate-left"></i>
         </div>
         <div>
-            <strong class="text-warning-emphasis d-block">Nhắc nhở Deadline: Bạn có <?= $data['taskStats']['overdue'] ?> công việc quá hạn cần hoàn thành!</strong>
-            <small class="text-muted">Hãy dành thời gian ưu tiên xử lý các nhiệm vụ tồn đọng để đảm bảo tiến độ kế hoạch.</small>
+            <strong class="d-block" style="color: var(--text);">Có <?= $data['taskStats']['overdue'] ?> công việc đã quá hạn</strong>
+            <small class="text-muted">Ưu tiên xử lý các nhiệm vụ tồn đọng trước khi sang lịch mới</small>
         </div>
     </div>
-    <a href="index.php?page=tasks&status=overdue" class="btn btn-sm btn-warning text-dark px-3 fw-bold">
-        <i class="fa-solid fa-arrow-right me-1"></i> Xử lý ngay
+    <a href="index.php?page=tasks&status=overdue" class="btn btn-sm btn-light px-3">
+        Xem việc quá hạn
     </a>
 </div>
 <?php endif; ?>
@@ -32,12 +32,11 @@
     ?>
     <article class="stat-card stat-card-<?= $k ?>">
         <div class="stat-top">
+            <span class="stat-label-top"><?= $stat['label'] ?></span>
             <span class="stat-icon <?= $stat['tone'] ?>"><i class="fa-solid <?= $stat['icon'] ?>"></i></span>
-            <button class="more-btn" aria-label="Tùy chọn"><i class="fa-solid fa-ellipsis"></i></button>
         </div>
         <div class="stat-value" id="dashCard_<?= $k ?>_val"><?= $stat['value'] ?></div>
-        <div class="stat-label"><?= $stat['label'] ?></div>
-        <div class="stat-change <?= $stat['tone'] ?>" id="dashCard_<?= $k ?>_change"><i class="fa-solid fa-arrow-trend-up"></i> <?= $stat['change'] ?></div>
+        <div class="stat-change <?= $stat['tone'] ?>" id="dashCard_<?= $k ?>_change"><?= $stat['change'] ?></div>
     </article>
     <?php endforeach; ?>
 </section>
@@ -125,12 +124,15 @@
     </article>
 
     <article class="focus-card">
-        <div class="focus-orb"><i class="fa-solid fa-stopwatch"></i></div>
-        <span class="focus-label">KHÔNG GIAN TẬP TRUNG</span>
-        <h2>Dành thời gian cho<br>điều quan trọng.</h2>
-        <p>Bắt đầu một phiên Pomodoro để làm việc tập trung hơn.</p>
-        <a href="index.php?page=pomodoro" class="btn btn-focus">Bắt đầu tập trung <i class="fa-solid fa-arrow-right ms-2"></i></a>
-        <div class="focus-decoration decoration-one"></div>
-        <div class="focus-decoration decoration-two"></div>
+        <div class="focus-card-top">
+            <span class="focus-label">Pomodoro</span>
+            <i class="fa-solid fa-stopwatch text-muted"></i>
+        </div>
+        <div>
+            <div class="focus-timer-preview">25:00</div>
+            <h2>Phiên làm việc tập trung</h2>
+            <p>Bắt đầu một chu kỳ 25 phút tập trung và 5 phút nghỉ ngắn</p>
+        </div>
+        <a href="index.php?page=pomodoro" class="btn btn-focus">Bắt đầu phiên <i class="fa-solid fa-arrow-right"></i></a>
     </article>
 </section>

@@ -8,7 +8,7 @@
         </div>
         <div class="toolbar-cat-chips" id="categoryChipsContainer">
             <?php foreach (($data['categories'] ?? []) as $cat): 
-                $c = $cat['color'] ?: '#6658e8';
+                $c = $cat['color'] ?: '#c2410c';
             ?>
                 <button type="button" class="cat-chip" data-category-id="<?= $cat['id'] ?>" data-name="<?= htmlspecialchars($cat['name']) ?>" style="--chip-color: <?= $c ?>; --chip-bg: <?= $c ?>18; --chip-border: <?= $c ?>35;">
                     <span class="chip-dot" style="background-color: <?= $c ?>;"></span>
@@ -58,6 +58,10 @@
                 <button type="button" class="view-seg-btn" id="calViewDay" data-view="timeGridDay">
                     <i class="fa-regular fa-calendar-check"></i>
                     <span>Ngày</span>
+                </button>
+                <button type="button" class="view-seg-btn" id="calViewList" data-view="listMonth">
+                    <i class="fa-solid fa-list-ul"></i>
+                    <span>Danh sách</span>
                 </button>
             </div>
         </div>

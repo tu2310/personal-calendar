@@ -16,7 +16,7 @@ class Event
             SELECT e.*, c.name AS category_name, c.color AS category_color, COALESCE(NULLIF(c.icon, ''), 'fa-folder') AS category_icon
             FROM events e
             LEFT JOIN categories c ON e.category_id = c.id
-            WHERE e.user_id = :userId
+            WHERE e.user_id = :userId AND e.deleted_at IS NULL
             ORDER BY e.start_time ASC
         ");
         $stmt->execute(['userId' => $userId]);
@@ -29,7 +29,7 @@ class Event
             SELECT e.*, c.name AS category_name, c.color AS category_color, COALESCE(NULLIF(c.icon, ''), 'fa-folder') AS category_icon
             FROM events e
             LEFT JOIN categories c ON e.category_id = c.id
-            WHERE e.user_id = :userId
+            WHERE e.user_id = :userId AND e.deleted_at IS NULL
               AND e.start_time <= :end
               AND e.end_time >= :start
         ";
@@ -57,7 +57,7 @@ class Event
             SELECT e.*, c.name AS category_name, c.color AS category_color, COALESCE(NULLIF(c.icon, ''), 'fa-folder') AS category_icon
             FROM events e
             LEFT JOIN categories c ON e.category_id = c.id
-            WHERE e.id = :id AND e.user_id = :userId
+            WHERE e.id = :id AND e.user_id = :userId AND e.deleted_at IS NULL
             LIMIT 1
         ");
         $stmt->execute(['id' => $id, 'userId' => $userId]);
@@ -212,15 +212,56 @@ class Event
 
     public function delete(int $id, int $userId): bool
     {
-        // Xóa các nhắc nhở và thông báo liên quan
-        $this->db->prepare("DELETE FROM reminders WHERE event_id = :id")->execute(['id' => $id]);
-        $this->db->prepare("DELETE FROM notifications WHERE reference_type = 'event' AND reference_id = :id")->execute(['id' => $id]);
-
         $stmt = $this->db->prepare("
-            DELETE FROM events 
-            WHERE id = :id AND user_id = :user_id
+            UPDATE events SET deleted_at = NOW(), updated_at = NOW()
+            WHERE id = :id AND user_id = :user_id AND deleted_at IS NULL
         ");
         return $stmt->execute(['id' => $id, 'user_id' => $userId]);
+    }
+
+    public function trashForUser(int $userId): array
+    {
+        $stmt = $this->db->prepare("
+            SELECT e.*, c.name AS category_name, c.color AS category_color
+            FROM events e
+            LEFT JOIN categories c ON e.category_id = c.id
+            WHERE e.user_id = :userId AND e.deleted_at IS NOT NULL
+            ORDER BY e.deleted_at DESC, e.id DESC
+        ");
+        $stmt->execute(['userId' => $userId]);
+        return $stmt->fetchAll();
+    }
+
+    public function restore(int $id, int $userId): bool
+    {
+        $stmt = $this->db->prepare("
+            UPDATE events SET deleted_at = NULL, updated_at = NOW()
+            WHERE id = :id AND user_id = :user_id AND deleted_at IS NOT NULL
+        ");
+        return $stmt->execute(['id' => $id, 'user_id' => $userId]);
+    }
+
+    public function forceDelete(int $id, int $userId): bool
+    {
+        $this->db->prepare("DELETE FROM reminders WHERE event_id = :id")->execute(['id' => $id]);
+        $this->db->prepare("DELETE FROM notifications WHERE reference_type = 'event' AND reference_id = :id")->execute(['id' => $id]);
+        $stmt = $this->db->prepare("
+            DELETE FROM events
+            WHERE id = :id AND user_id = :user_id AND deleted_at IS NOT NULL
+        ");
+        return $stmt->execute(['id' => $id, 'user_id' => $userId]);
+    }
+
+    public function emptyTrash(int $userId): bool
+    {
+        $ids = $this->db->prepare("SELECT id FROM events WHERE user_id = :user_id AND deleted_at IS NOT NULL");
+        $ids->execute(['user_id' => $userId]);
+        foreach ($ids->fetchAll(PDO::FETCH_COLUMN) as $evId) {
+            $this->db->prepare("DELETE FROM reminders WHERE event_id = :id")->execute(['id' => $evId]);
+            $this->db->prepare("DELETE FROM notifications WHERE reference_type = 'event' AND reference_id = :id")->execute(['id' => $evId]);
+        }
+        $stmt = $this->db->prepare("DELETE FROM events WHERE user_id = :user_id AND deleted_at IS NOT NULL");
+        return $stmt->execute(['user_id' => $userId]);
     }
 
     public function getTodayEvents(int $userId): array
@@ -230,7 +271,7 @@ class Event
             SELECT e.*, c.name AS category_name, c.color AS category_color, COALESCE(NULLIF(c.icon, ''), 'fa-folder') AS category_icon
             FROM events e
             LEFT JOIN categories c ON e.category_id = c.id
-            WHERE e.user_id = :userId
+            WHERE e.user_id = :userId AND e.deleted_at IS NULL
               AND DATE(e.start_time) <= :todayEnd
               AND DATE(e.end_time) >= :todayStart
             ORDER BY e.start_time ASC
@@ -250,7 +291,7 @@ class Event
             SELECT e.*, c.name AS category_name, c.color AS category_color, COALESCE(NULLIF(c.icon, ''), 'fa-folder') AS category_icon
             FROM events e
             LEFT JOIN categories c ON e.category_id = c.id
-            WHERE e.user_id = :userId
+            WHERE e.user_id = :userId AND e.deleted_at IS NULL
               AND e.start_time >= :now
             ORDER BY e.start_time ASC
             LIMIT {$limit}
@@ -415,7 +456,7 @@ class Event
             SELECT e.*, c.name AS category_name, c.color AS category_color, COALESCE(NULLIF(c.icon, ''), 'fa-folder') AS category_icon
             FROM events e
             LEFT JOIN categories c ON e.category_id = c.id
-            WHERE e.user_id = :userId
+            WHERE e.user_id = :userId AND e.deleted_at IS NULL
             ORDER BY e.start_time DESC
         ");
         $stmt->execute(['userId' => $userId]);

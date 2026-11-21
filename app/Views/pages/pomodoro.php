@@ -1,8 +1,8 @@
 <section class="welcome-row">
     <div>
-        <div class="eyebrow">TẬP TRUNG VÀO ĐIỀU QUAN TRỌNG</div>
+        <div class="eyebrow">Tập trung</div>
         <h1>Đồng hồ Pomodoro</h1>
-        <p class="page-subtitle">Phương pháp làm việc tập trung sâu trong 25 phút, kết hợp nghỉ ngơi tái tạo năng lượng.</p>
+        <p class="page-subtitle">Chu kỳ 25 phút tập trung và 5 phút nghỉ ngắn</p>
     </div>
 </section>
 
@@ -17,7 +17,7 @@
         <div class="timer-ring">
             <div>
                 <strong id="timerDisplay">25:00</strong>
-                <span id="timerCaption">SẴN SÀNG TẬP TRUNG?</span>
+                <span id="timerCaption">Sẵn sàng bắt đầu</span>
             </div>
         </div>
 

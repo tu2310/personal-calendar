@@ -4,13 +4,16 @@
  */
 class Auth
 {
+    private static bool $initialized = false;
+
     public static function init(): void
     {
-        if (session_status() === PHP_SESSION_NONE) {
+        if (!self::$initialized && session_status() === PHP_SESSION_NONE) {
             ini_set('session.cookie_httponly', '1');
             ini_set('session.use_only_cookies', '1');
             session_start();
         }
+        self::$initialized = true;
     }
 
     public static function login(array $user): void

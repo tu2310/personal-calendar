@@ -23,7 +23,7 @@ class Task
                    END AS is_overdue
             FROM tasks t
             LEFT JOIN categories c ON t.category_id = c.id
-            WHERE t.user_id = :userId
+            WHERE t.user_id = :userId AND t.deleted_at IS NULL
         ";
         $params = ['userId' => $userId];
 
@@ -97,7 +97,7 @@ class Task
                    END AS is_overdue
             FROM tasks t
             LEFT JOIN categories c ON t.category_id = c.id
-            WHERE t.id = :id AND t.user_id = :userId
+            WHERE t.id = :id AND t.user_id = :userId AND t.deleted_at IS NULL
             LIMIT 1
         ");
         $stmt->execute(['id' => $id, 'userId' => $userId]);
@@ -201,13 +201,53 @@ class Task
     public function delete(int $id, int $userId): bool
     {
         $stmt = $this->db->prepare("
-            DELETE FROM tasks 
-            WHERE id = :id AND user_id = :user_id
+            UPDATE tasks SET deleted_at = NOW(), updated_at = NOW()
+            WHERE id = :id AND user_id = :user_id AND deleted_at IS NULL
         ");
         return $stmt->execute([
             'id'      => $id,
             'user_id' => $userId
         ]);
+    }
+
+    public function trashForUser(int $userId): array
+    {
+        $stmt = $this->db->prepare("
+            SELECT t.*, c.name AS category_name, c.color AS category_color
+            FROM tasks t
+            LEFT JOIN categories c ON t.category_id = c.id
+            WHERE t.user_id = :userId AND t.deleted_at IS NOT NULL
+            ORDER BY t.deleted_at DESC, t.id DESC
+        ");
+        $stmt->execute(['userId' => $userId]);
+        return $stmt->fetchAll();
+    }
+
+    public function restore(int $id, int $userId): bool
+    {
+        $stmt = $this->db->prepare("
+            UPDATE tasks SET deleted_at = NULL, updated_at = NOW()
+            WHERE id = :id AND user_id = :user_id AND deleted_at IS NOT NULL
+        ");
+        return $stmt->execute(['id' => $id, 'user_id' => $userId]);
+    }
+
+    public function forceDelete(int $id, int $userId): bool
+    {
+        $stmt = $this->db->prepare("
+            DELETE FROM tasks
+            WHERE id = :id AND user_id = :user_id AND deleted_at IS NOT NULL
+        ");
+        return $stmt->execute(['id' => $id, 'user_id' => $userId]);
+    }
+
+    public function emptyTrash(int $userId): bool
+    {
+        $stmt = $this->db->prepare("
+            DELETE FROM tasks
+            WHERE user_id = :user_id AND deleted_at IS NOT NULL
+        ");
+        return $stmt->execute(['user_id' => $userId]);
     }
 
     public function getStats(int $userId): array
@@ -221,7 +261,7 @@ class Task
                 SUM(CASE WHEN priority = 'high' AND status = 'pending' THEN 1 ELSE 0 END) AS high,
                 SUM(CASE WHEN status = 'pending' AND due_date IS NOT NULL AND due_date < CURDATE() THEN 1 ELSE 0 END) AS overdue
             FROM tasks
-            WHERE user_id = :userId
+            WHERE user_id = :userId AND deleted_at IS NULL
         ");
         $stmt->execute(['userId' => $userId]);
         $row = $stmt->fetch() ?: [];
@@ -260,7 +300,7 @@ class Task
             SELECT t.*, c.name AS category_name, c.color AS category_color, COALESCE(NULLIF(c.icon, ''), 'fa-folder') AS category_icon
             FROM tasks t
             LEFT JOIN categories c ON t.category_id = c.id
-            WHERE t.user_id = :userId
+            WHERE t.user_id = :userId AND t.deleted_at IS NULL
             ORDER BY t.created_at DESC
         ");
         $stmt->execute(['userId' => $userId]);

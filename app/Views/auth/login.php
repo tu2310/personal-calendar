@@ -17,8 +17,8 @@
                 <span class="brand-icon"><i class="fa-solid fa-calendar-check"></i></span>
                 <span class="fs-4 fw-bold">Personal <span class="text-primary-accent">Calendar</span></span>
             </div>
-            <h2 class="auth-title">Chào mừng trở lại!</h2>
-            <p class="auth-subtitle text-muted">Đăng nhập để quản lý lịch trình và công việc của bạn</p>
+            <h2 class="auth-title">Đăng nhập</h2>
+            <p class="auth-subtitle">Truy cập lịch trình và danh sách công việc cá nhân</p>
         </div>
 
         <?php if (!empty($error)): ?>
@@ -39,11 +39,11 @@
             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
             
             <div class="mb-3">
-                <label for="email" class="form-label fw-semibold">Địa chỉ Email</label>
+                <label for="email" class="form-label fw-semibold">Tài khoản / Email</label>
                 <div class="input-group">
-                    <span class="input-group-text"><i class="fa-regular fa-envelope"></i></span>
-                    <input type="email" class="form-control" id="email" name="email" 
-                           placeholder="name@example.com" value="<?= htmlspecialchars($oldEmail ?? '') ?>" required autofocus>
+                    <span class="input-group-text"><i class="fa-regular fa-user"></i></span>
+                    <input type="text" class="form-control" id="email" name="email" 
+                           placeholder="admin hoặc name@example.com" value="<?= htmlspecialchars($oldEmail ?? '') ?>" required autofocus autocomplete="username">
                 </div>
             </div>
 

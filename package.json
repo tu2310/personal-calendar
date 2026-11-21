@@ -1,0 +1,14 @@
+{
+  "name": "personal-calendar",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Personal Calendar PHP/MySQL app with zero-config npm runner",
+  "scripts": {
+    "dev": "node scripts/dev.mjs dev",
+    "start": "node scripts/dev.mjs dev",
+    "db:setup": "node scripts/dev.mjs db:setup",
+    "ui": "node scripts/dev.mjs ui",
+    "lint": "node scripts/dev.mjs lint",
+    "test": "node scripts/dev.mjs test"
+  }
+}

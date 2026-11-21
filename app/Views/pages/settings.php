@@ -4,9 +4,9 @@ $csrfToken = $data['csrf_token'] ?? '';
 ?>
 <section class="welcome-row">
     <div>
-        <div class="eyebrow">CÁ NHÂN HÓA TRẢI NGHIỆM</div>
-        <h1>Cài đặt hệ thống</h1>
-        <p class="page-subtitle">Tùy chỉnh thông tin tài khoản, giao diện và các tùy chọn nhắc nhở thông minh.</p>
+        <div class="eyebrow">Tùy chỉnh</div>
+        <h1>Cài đặt</h1>
+        <p class="page-subtitle">Thông tin tài khoản, giao diện và tùy chọn nhắc nhở</p>
     </div>
 </section>
 
@@ -87,13 +87,13 @@ $csrfToken = $data['csrf_token'] ?? '';
                         <p class="mb-2 text-muted" style="font-size: 11.5px; line-height: 1.5;">
                             Do chính sách bảo mật của trình duyệt, khi đã chọn "Chặn", JavaScript không thể tự động xin lại quyền mà bạn cần mở lại bằng tay:
                         </p>
-                        <ol class="mb-2 ps-3 text-muted" style="font-size: 11.5px; line-height: 1.6;">
-                            <li>Bấm vào biểu tượng <strong>Cài đặt trang web (icon ổ khóa 🔒 hoặc bộ lọc 🎛️)</strong> ở đầu thanh địa chỉ URL bên trên.</li>
-                            <li>Tìm mục <strong>Thông báo (Notifications)</strong> và chọn <strong>Cho phép (Allow)</strong> hoặc <strong>Bật công tắc</strong>.</li>
-                            <li>Tải lại trang (nhấn phím <code>F5</code> hoặc nút Reload).</li>
+                        <ol class="mb-2 ps-3 text-muted" style="font-size: 0.8125rem; line-height: 1.6;">
+                            <li>Bấm vào biểu tượng <strong>Cài đặt trang web</strong> ở đầu thanh địa chỉ URL bên trên.</li>
+                            <li>Tìm mục <strong>Thông báo (Notifications)</strong> và chọn <strong>Cho phép (Allow)</strong>.</li>
+                            <li>Tải lại trang (nhấn phím <code>F5</code>).</li>
                         </ol>
-                        <div class="badge bg-warning-subtle text-warning" style="font-size: 11px;">
-                            <i class="fa-solid fa-shield-halved me-1"></i> Thông báo âm thanh, Toast và Chuông bên trong website vẫn hoạt động 100%!
+                        <div class="badge bg-warning-subtle text-warning" style="font-size: 0.75rem;">
+                            <i class="fa-solid fa-shield-halved me-1"></i>Thông báo âm thanh, Toast và chuông trong trang vẫn hoạt động bình thường
                         </div>
                     </div>
                 </div>

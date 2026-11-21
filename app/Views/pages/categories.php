@@ -25,18 +25,18 @@ $presetIcons = [
 ?>
 <section class="welcome-row">
     <div>
-        <div class="eyebrow">PHÂN LOẠI LỊCH TRÌNH & CÔNG VIỆC</div>
-        <h1>Quản lý danh mục</h1>
-        <p class="page-subtitle">Tổ chức lịch trình và nhiệm vụ theo từng mảng cuộc sống với màu sắc và biểu tượng trực quan.</p>
+        <div class="eyebrow">Phân loại</div>
+        <h1>Danh mục</h1>
+        <p class="page-subtitle">Tổ chức lịch trình và nhiệm vụ theo từng nhóm màu sắc</p>
     </div>
     <button class="btn btn-primary-soft" id="btnOpenAddCategoryModal">
-        <i class="fa-solid fa-plus me-2"></i>Thêm danh mục mới
+        <i class="fa-solid fa-plus"></i><span>Thêm danh mục</span>
     </button>
 </section>
 
 <div class="category-grid" id="categoryGrid">
     <?php foreach ($categories as $cat): 
-        $color = $cat['color'] ?: '#6658e8';
+        $color = $cat['color'] ?: '#c2410c';
         $icon = !empty($cat['icon']) ? $cat['icon'] : 'fa-folder';
         $isSystem = empty($cat['user_id']);
     ?>

@@ -17,8 +17,8 @@
                 <span class="brand-icon"><i class="fa-solid fa-calendar-check"></i></span>
                 <span class="fs-4 fw-bold">Personal <span class="text-primary-accent">Calendar</span></span>
             </div>
-            <h2 class="auth-title">Tạo tài khoản mới</h2>
-            <p class="auth-subtitle text-muted">Bắt đầu quản lý thời gian hiệu quả cùng chúng tôi</p>
+            <h2 class="auth-title">Tạo tài khoản</h2>
+            <p class="auth-subtitle">Bắt đầu quản lý lịch trình và công việc hằng ngày</p>
         </div>
 
         <?php if (!empty($error)): ?>

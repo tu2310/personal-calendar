@@ -34,6 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
     themeToggle?.addEventListener('click', () => {
         body.classList.toggle('dark');
         const isDark = body.classList.contains('dark');
+        document.documentElement.classList.toggle('dark', isDark);
         localStorage.setItem('personalCalendarTheme', isDark ? 'dark' : 'light');
         updateThemeIcon();
         if (window.Toast) {
@@ -116,8 +117,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     text: 'Bạn có chắc chắn muốn kết thúc phiên làm việc hiện tại không?',
                     icon: 'question',
                     showCancelButton: true,
-                    confirmButtonColor: '#6658e8',
-                    cancelButtonColor: '#8589a5',
+                    confirmButtonColor: '#c2410c',
+                    cancelButtonColor: '#71717a',
                     confirmButtonText: '<i class="fa-solid fa-right-from-bracket me-1"></i> Đăng xuất',
                     cancelButtonText: 'Ở lại'
                 }).then((res) => {
@@ -747,13 +748,14 @@ function initWeeklyChart() {
 
         const maxVal = Math.max(10, ...completedData, ...pendingData) + 2;
 
+        const isDarkTheme = document.body.classList.contains('dark');
         new Chart(chart, {
             type: 'bar',
             data: {
                 labels: labels,
                 datasets: [
-                    { label: 'Hoàn thành', data: completedData, backgroundColor: '#7669ed', borderRadius: 5, barThickness: 12 },
-                    { label: 'Chưa hoàn thành', data: pendingData, backgroundColor: '#d7d3ff', borderRadius: 5, barThickness: 12 }
+                    { label: 'Hoàn thành', data: completedData, backgroundColor: isDarkTheme ? '#ea580c' : '#c2410c', borderRadius: 4, barThickness: 12 },
+                    { label: 'Chưa hoàn thành', data: pendingData, backgroundColor: isDarkTheme ? '#3f3f46' : '#d4d4d8', borderRadius: 4, barThickness: 12 }
                 ]
             },
             options: {
@@ -764,8 +766,8 @@ function initWeeklyChart() {
                     tooltip: { mode: 'index', intersect: false }
                 },
                 scales: {
-                    x: { grid: { display: false }, border: { display: false }, ticks: { color: '#9296b0', font: { size: 9.5 } } },
-                    y: { beginAtZero: true, max: maxVal, ticks: { stepSize: 2, color: '#9296b0', font: { size: 9.5 } }, grid: { color: 'rgba(140,145,180,.13)' }, border: { display: false } }
+                    x: { grid: { display: false }, border: { display: false }, ticks: { color: isDarkTheme ? '#85858b' : '#71717a', font: { family: "'JetBrains Mono', monospace", size: 11 } } },
+                    y: { beginAtZero: true, max: maxVal, ticks: { stepSize: 2, color: isDarkTheme ? '#85858b' : '#71717a', font: { family: "'JetBrains Mono', monospace", size: 11 } }, grid: { color: isDarkTheme ? 'rgba(237,237,237,0.07)' : 'rgba(24,24,27,0.07)' }, border: { display: false } }
                 }
             }
         });
@@ -2020,7 +2022,6 @@ function initFullCalendar() {
                 if (selectedCategoryId === catId) {
                     selectedCategoryId = null;
                     chip.classList.remove('active');
-                    window.Toast?.info('Hiển thị tất cả lịch trình.', 'Bộ lọc');
                 } else {
                     document.querySelectorAll('.cat-chip').forEach(c => c.classList.remove('active'));
                     selectedCategoryId = catId;

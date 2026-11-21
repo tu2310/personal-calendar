@@ -266,12 +266,116 @@ class TaskController
         if ($ok) {
             echo json_encode([
                 'success' => true,
-                'message' => 'Xóa công việc thành công!',
+                'message' => 'Đã chuyển công việc vào thùng rác.',
                 'stats'   => $this->taskModel->getStats($userId)
             ], JSON_UNESCAPED_UNICODE);
         } else {
             echo json_encode(['success' => false, 'message' => 'Không thể xóa công việc.']);
         }
+        exit;
+    }
+
+    public function trashData(): array
+    {
+        require_once __DIR__ . '/../Models/Event.php';
+        $userId = Auth::id();
+        $eventModel = new Event();
+
+        $tasks = array_map(function ($t) {
+            $t['item_type'] = 'task';
+            return $t;
+        }, $this->taskModel->trashForUser($userId));
+
+        $events = array_map(function ($e) {
+            $e['item_type'] = 'event';
+            return $e;
+        }, $eventModel->trashForUser($userId));
+
+        $merged = array_merge($tasks, $events);
+        usort($merged, fn($a, $b) => strcmp($b['deleted_at'] ?? '', $a['deleted_at'] ?? ''));
+
+        return [
+            'csrf_token' => Auth::csrfToken(),
+            'trash'      => $merged
+        ];
+    }
+
+    public function restore(): void
+    {
+        Auth::requireLogin();
+        header('Content-Type: application/json; charset=utf-8');
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            echo json_encode(['success' => false, 'message' => 'Phương thức không hợp lệ.']);
+            exit;
+        }
+        $input = $_POST ?: (json_decode(file_get_contents('php://input'), true) ?? []);
+        if (!Auth::verifyCsrf($input['csrf_token'] ?? $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '')) {
+            echo json_encode(['success' => false, 'message' => 'Mã xác thực CSRF không hợp lệ.']);
+            exit;
+        }
+        $id = (int)($input['id'] ?? 0);
+        $type = ($input['type'] ?? 'task') === 'event' ? 'event' : 'task';
+        if ($type === 'event') {
+            require_once __DIR__ . '/../Models/Event.php';
+            $ok = $id > 0 && (new Event())->restore($id, Auth::id());
+        } else {
+            $ok = $id > 0 && $this->taskModel->restore($id, Auth::id());
+        }
+        echo json_encode([
+            'success' => $ok,
+            'message' => $ok ? 'Đã khôi phục thành công.' : 'Không thể khôi phục mục này.'
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    public function forceDelete(): void
+    {
+        Auth::requireLogin();
+        header('Content-Type: application/json; charset=utf-8');
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            echo json_encode(['success' => false, 'message' => 'Phương thức không hợp lệ.']);
+            exit;
+        }
+        $input = $_POST ?: (json_decode(file_get_contents('php://input'), true) ?? []);
+        if (!Auth::verifyCsrf($input['csrf_token'] ?? $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '')) {
+            echo json_encode(['success' => false, 'message' => 'Mã xác thực CSRF không hợp lệ.']);
+            exit;
+        }
+        $id = (int)($input['id'] ?? 0);
+        $type = ($input['type'] ?? 'task') === 'event' ? 'event' : 'task';
+        if ($type === 'event') {
+            require_once __DIR__ . '/../Models/Event.php';
+            $ok = $id > 0 && (new Event())->forceDelete($id, Auth::id());
+        } else {
+            $ok = $id > 0 && $this->taskModel->forceDelete($id, Auth::id());
+        }
+        echo json_encode([
+            'success' => $ok,
+            'message' => $ok ? 'Đã xóa vĩnh viễn.' : 'Không thể xóa mục này.'
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    public function emptyTrash(): void
+    {
+        Auth::requireLogin();
+        header('Content-Type: application/json; charset=utf-8');
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            echo json_encode(['success' => false, 'message' => 'Phương thức không hợp lệ.']);
+            exit;
+        }
+        $input = $_POST ?: (json_decode(file_get_contents('php://input'), true) ?? []);
+        if (!Auth::verifyCsrf($input['csrf_token'] ?? $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '')) {
+            echo json_encode(['success' => false, 'message' => 'Mã xác thực CSRF không hợp lệ.']);
+            exit;
+        }
+        require_once __DIR__ . '/../Models/Event.php';
+        $ok1 = $this->taskModel->emptyTrash(Auth::id());
+        $ok2 = (new Event())->emptyTrash(Auth::id());
+        echo json_encode([
+            'success' => ($ok1 && $ok2),
+            'message' => ($ok1 && $ok2) ? 'Đã dọn sạch thùng rác.' : 'Không thể dọn thùng rác.'
+        ], JSON_UNESCAPED_UNICODE);
         exit;
     }
 }
