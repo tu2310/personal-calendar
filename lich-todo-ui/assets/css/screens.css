@@ -1,0 +1,603 @@
+/* Screen General Layout */
+.screen-container {
+  padding: var(--space-3) var(--space-4);
+  max-width: var(--max-content-width);
+  margin: 0 auto;
+  width: 100%;
+}
+
+@media (min-width: 768px) {
+  .screen-container {
+    padding: var(--space-4) var(--space-5);
+  }
+}
+
+.screen-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-bottom: var(--space-4);
+}
+
+.screen-title {
+  font-size: var(--font-xl);
+  font-weight: 700;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.screen-subtitle {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+}
+
+/* 1. MÀN HÌNH HÔM NAY */
+.today-summary-card {
+  background: linear-gradient(135deg, var(--bg-surface), var(--bg-subtle));
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-4);
+  box-shadow: var(--shadow-sm);
+}
+
+.today-greeting {
+  font-size: var(--font-lg);
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.today-date {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+  margin-bottom: var(--space-2);
+}
+
+.section-block {
+  margin-bottom: var(--space-4);
+}
+
+.section-title {
+  font-size: var(--font-sm);
+  font-weight: 700;
+  margin-bottom: var(--space-2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.overdue-block {
+  border-left: 3px solid var(--danger);
+  background-color: var(--danger-light);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  padding: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+/* Timeline */
+.timeline-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  position: relative;
+}
+
+.timeline-item {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.timeline-time {
+  font-size: var(--font-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+  width: 48px;
+  flex-shrink: 0;
+}
+
+.timeline-card {
+  flex: 1;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-left-width: 3px;
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  box-shadow: var(--shadow-sm);
+}
+
+/* 2. MÀN HÌNH LỊCH */
+.calendar-view-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.calendar-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.calendar-month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+  background-color: var(--border-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin-bottom: var(--space-4);
+}
+
+.calendar-weekday {
+  background-color: var(--bg-surface-elevated);
+  padding: var(--space-1) var(--space-2);
+  text-align: center;
+  font-size: var(--font-xs);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.calendar-day-cell {
+  background-color: var(--bg-surface);
+  min-height: 44px;
+  padding: 3px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  cursor: pointer;
+  position: relative;
+  transition: background-color var(--transition-fast);
+}
+
+@media (min-width: 768px) {
+  .calendar-day-cell {
+    min-height: 64px;
+    align-items: flex-start;
+    padding: var(--space-1) var(--space-2);
+  }
+}
+
+.calendar-day-cell:hover {
+  background-color: var(--bg-subtle);
+}
+
+.calendar-day-cell.other-month {
+  opacity: 0.35;
+}
+
+.calendar-day-cell.selected {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+  background-color: var(--primary-light);
+}
+
+.calendar-day-cell.is-today .day-number {
+  background-color: var(--primary);
+  color: var(--text-inverse);
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.day-number {
+  font-size: var(--font-xs);
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.day-dots {
+  display: flex;
+  gap: 3px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 2px;
+}
+
+.day-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+}
+
+/* Hourly Grid (Week/Day) */
+.hourly-grid-container {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-surface);
+  overflow-y: auto;
+  max-height: 520px;
+  position: relative;
+}
+
+.hourly-row {
+  display: flex;
+  height: 48px;
+  border-bottom: 1px solid var(--border-subtle);
+  position: relative;
+}
+
+.hourly-time-label {
+  width: 54px;
+  flex-shrink: 0;
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  padding: 2px 6px;
+  border-right: 1px solid var(--border-subtle);
+  text-align: right;
+}
+
+.hourly-content-slot {
+  flex: 1;
+  position: relative;
+}
+
+.now-indicator-line {
+  position: absolute;
+  left: 54px;
+  right: 0;
+  height: 2px;
+  background-color: var(--danger);
+  z-index: 10;
+  pointer-events: none;
+}
+.now-indicator-line::before {
+  content: '';
+  position: absolute;
+  left: -4px;
+  top: -4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--danger);
+}
+
+.event-block {
+  position: absolute;
+  left: 4px;
+  right: 6px;
+  background-color: var(--primary-light);
+  border-left: 3px solid var(--primary);
+  border-radius: var(--radius-sm);
+  padding: 2px 6px;
+  font-size: var(--font-xs);
+  overflow: hidden;
+  cursor: grab;
+  z-index: 5;
+}
+
+/* 3. MÀN HÌNH DANH SÁCH VIỆC */
+.task-group {
+  margin-bottom: var(--space-4);
+}
+
+.task-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-1) 0;
+  font-size: var(--font-xs);
+  font-weight: 700;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: var(--space-2);
+}
+
+.task-item-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--space-1);
+  transition: all var(--transition-fast);
+}
+
+.task-item-row:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-sm);
+}
+
+.task-item-row.completed {
+  opacity: 0.6;
+}
+
+.task-item-row.completed .task-title {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+.task-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  cursor: pointer;
+}
+
+.task-title {
+  font-size: var(--font-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.task-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
+
+.task-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* 4 & 5. FORM SHEET & DETAIL */
+.quick-due-chips {
+  display: flex;
+  gap: var(--space-2);
+  overflow-x: auto;
+  padding-bottom: var(--space-2);
+}
+
+.chip-btn {
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-subtle);
+  font-size: var(--font-xs);
+  font-weight: 500;
+  background-color: var(--bg-surface);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  min-height: 32px;
+}
+
+.chip-btn.active {
+  background-color: var(--primary-light);
+  border-color: var(--primary);
+  color: var(--primary-text);
+  font-weight: 600;
+}
+
+.subtask-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: var(--space-2) 0;
+}
+
+.subtask-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  background-color: var(--bg-subtle);
+  border-radius: var(--radius-sm);
+}
+
+.subtask-item.checked span {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+/* 7. DANH MỤC & NHÃN */
+.cat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-4);
+}
+
+.cat-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+}
+
+/* 8. THÔNG BÁO */
+.notification-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  background-color: var(--bg-surface);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  margin-bottom: var(--space-3);
+}
+
+.notification-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+/* 9. THỐNG KÊ */
+.stat-summary-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+
+.stat-metric-card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  text-align: center;
+}
+
+.stat-metric-num {
+  font-size: var(--font-2xl);
+  font-weight: 800;
+  color: var(--primary);
+  margin-bottom: 2px;
+}
+
+.stat-metric-label {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
+
+.chart-box {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+
+.chart-title {
+  font-size: var(--font-base);
+  font-weight: 700;
+  margin-bottom: var(--space-4);
+}
+
+/* 10. TÌM KIẾM TOÀN CỤC */
+.search-bar-wrap {
+  position: relative;
+  margin-bottom: var(--space-4);
+}
+
+.search-input-main {
+  width: 100%;
+  padding-left: 44px;
+  font-size: var(--font-base);
+  height: 48px;
+}
+
+.search-icon-pos {
+  position: absolute;
+  left: 14px;
+  top: 14px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+/* 11. CÀI ĐẶT */
+.settings-group {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+
+.settings-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.settings-item:last-child {
+  border-bottom: none;
+}
+
+/* 12. AUTH MODAL/SCREEN */
+.auth-container {
+  max-width: 400px;
+  margin: var(--space-8) auto;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  padding: var(--space-6);
+  box-shadow: var(--shadow-md);
+}
+
+.auth-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: var(--space-6);
+}
+
+.auth-tab-btn {
+  flex: 1;
+  padding: var(--space-3);
+  font-weight: 600;
+  text-align: center;
+  color: var(--text-secondary);
+  border-bottom: 2px solid transparent;
+}
+
+.auth-tab-btn.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
+/* Sidebar navigation item styling */
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  color: var(--text-secondary);
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  margin-bottom: 2px;
+  transition: all var(--transition-fast);
+}
+
+.nav-link:hover {
+  background-color: var(--bg-subtle);
+  color: var(--text-primary);
+}
+
+.nav-link.active {
+  background-color: var(--primary-light);
+  color: var(--primary-text);
+}
+
+.nav-link .nav-badge {
+  margin-left: auto;
+  background-color: var(--danger);
+  color: #ffffff;
+  font-size: var(--font-xs);
+  padding: 2px 6px;
+  border-radius: var(--radius-full);
+}
+
+/* Bottom bar navigation item */
+.bottom-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  color: var(--text-muted);
+  font-size: var(--font-xs);
+  font-weight: 500;
+  flex: 1;
+  height: 100%;
+}
+
+.bottom-nav-item.active {
+  color: var(--primary);
+  font-weight: 700;
+}

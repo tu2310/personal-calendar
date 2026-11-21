@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lịch cá nhân + To-do list</title>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/base.css">
+  <link rel="stylesheet" href="assets/css/components.css">
+  <link rel="stylesheet" href="assets/css/screens.css">
+</head>
+<body>
+  <div id="app-shell">
+    <!-- Desktop Left Sidebar (>= 1024px) -->
+    <aside class="sidebar" aria-label="Điều hướng chính">
+      <div style="padding: 12px 14px; border-bottom: 1px solid var(--border-subtle); display: flex; align-items: center; justify-content: space-between;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <div style="width: 28px; height: 28px; border-radius: var(--radius-sm); background: var(--primary); color: #ffffff; display: flex; align-items: center; justify-content: center;">
+            <svg class="icon icon-sm" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+          </div>
+          <span style="font-size: 15px; font-weight: 700; color: var(--text-primary);">Lịch & Việc</span>
+        </div>
+      </div>
+
+      <nav style="padding: 16px 12px; flex: 1; overflow-y: auto;">
+        <a href="#/hom-nay" class="nav-link active">
+          <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><circle cx="12" cy="15" r="2"></circle></svg>
+          <span>Hôm nay</span>
+        </a>
+        <a href="#/lich" class="nav-link">
+          <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+          <span>Lịch biểu</span>
+        </a>
+        <a href="#/viec" class="nav-link">
+          <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><polyline points="9 11 12 14 22 4"></polyline></svg>
+          <span>Danh sách việc</span>
+        </a>
+        <a href="#/thong-ke" class="nav-link">
+          <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+          <span>Thống kê</span>
+        </a>
+        <a href="#/danh-muc" class="nav-link">
+          <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+          <span>Danh mục & Nhãn</span>
+        </a>
+        <a href="#/thong-bao" class="nav-link">
+          <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+          <span>Thông báo</span>
+          <span class="nav-badge">3</span>
+        </a>
+        <a href="#/tim-kiem" class="nav-link">
+          <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <span>Tìm kiếm</span>
+        </a>
+        <a href="#/thung-rac" class="nav-link">
+          <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+          <span>Thùng rác</span>
+        </a>
+        <a href="#/cai-dat" class="nav-link">
+          <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+          <span>Cài đặt</span>
+        </a>
+        <a href="#/auth" class="nav-link">
+          <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+          <span>Tài khoản (Demo)</span>
+        </a>
+      </nav>
+
+      <div style="padding: 10px 12px;">
+        <button type="button" class="btn btn-primary" style="width: 100%; min-height: 36px;" onclick="window.appActions.openAddTaskModal()">
+          <svg class="icon icon-sm" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          <span>Thêm việc (N)</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Wrapper -->
+    <div class="main-wrapper">
+      <!-- Quick Demo State Switcher Bar -->
+      <div class="demo-state-bar" role="toolbar" aria-label="Bộ chọn trạng thái giao diện demo">
+        <span style="font-weight: 600; white-space: nowrap;">Trạng thái Demo:</span>
+        <div style="display: flex; gap: 6px;">
+          <button type="button" class="demo-state-pill active" onclick="window.appActions.setDemoMode('normal')">Bình thường</button>
+          <button type="button" class="demo-state-pill" onclick="window.appActions.setDemoMode('loading')">Loading (Skeleton)</button>
+          <button type="button" class="demo-state-pill" onclick="window.appActions.setDemoMode('empty')">Rỗng</button>
+          <button type="button" class="demo-state-pill" onclick="window.appActions.setDemoMode('error')">Lỗi</button>
+        </div>
+      </div>
+
+      <!-- Main Screen Dynamic Content -->
+      <main id="main-content" role="main" tabindex="-1"></main>
+    </div>
+
+    <!-- Mobile Bottom Navigation Bar (< 1024px) -->
+    <nav class="bottom-nav" aria-label="Điều hướng di động">
+      <a href="#/hom-nay" class="bottom-nav-item active">
+        <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><circle cx="12" cy="15" r="2"></circle></svg>
+        <span>Hôm nay</span>
+      </a>
+      <a href="#/lich" class="bottom-nav-item">
+        <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+        <span>Lịch</span>
+      </a>
+      <a href="#/viec" class="bottom-nav-item">
+        <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><polyline points="9 11 12 14 22 4"></polyline></svg>
+        <span>Việc</span>
+      </a>
+      <a href="#/thong-ke" class="bottom-nav-item">
+        <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+        <span>Thống kê</span>
+      </a>
+      <a href="#/cai-dat" class="bottom-nav-item">
+        <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+        <span>Cài đặt</span>
+      </a>
+    </nav>
+
+    <!-- Floating Action Button (+) Fixed -->
+    <button type="button" class="fab" aria-label="Thêm công việc nhanh" onclick="window.appActions.openAddTaskModal()">
+      <svg class="icon icon-lg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+    </button>
+  </div>
+
+  <!-- MODAL / BOTTOM SHEET 1: THÊM / SỬA VIỆC -->
+  <div id="task-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="task-modal-title" aria-hidden="true">
+    <div class="modal-panel">
+      <div class="modal-header">
+        <h2 id="task-modal-title" class="modal-title">Thêm việc mới</h2>
+        <button type="button" class="btn btn-icon btn-ghost" onclick="window.appActions.closeModal('task-modal')" aria-label="Đóng">
+          <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+
+      <input type="hidden" id="task-edit-id">
+      <div id="task-form-error" class="form-error" role="alert"></div>
+
+      <div class="form-group">
+        <label class="form-label" for="task-input-title">Tiêu đề công việc <span class="text-danger">*</span></label>
+        <input type="text" id="task-input-title" class="form-input" placeholder="Ví dụ: Hoàn thành thiết kế hệ thống..." required>
+      </div>
+
+      <!-- Quick Due Chips -->
+      <div class="form-group">
+        <label class="form-label">Chọn hạn nhanh</label>
+        <div class="quick-due-chips">
+          <button type="button" id="chip-today" class="chip-btn active" onclick="window.appActions.setQuickDueDate(0)">Hôm nay</button>
+          <button type="button" id="chip-tomorrow" class="chip-btn" onclick="window.appActions.setQuickDueDate(1)">Ngày mai</button>
+          <button type="button" id="chip-next-week" class="chip-btn" onclick="window.appActions.setQuickDueDate(7)">Tuần sau</button>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+        <div class="form-group">
+          <label class="form-label" for="task-input-due-date">Ngày hạn</label>
+          <input type="date" id="task-input-due-date" class="form-input">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="task-input-due-time">Giờ hạn</label>
+          <input type="time" id="task-input-due-time" class="form-input">
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+        <div class="form-group">
+          <label class="form-label" for="task-input-category">Danh mục</label>
+          <select id="task-input-category" class="form-select">
+            <option value="cat-work">Công việc</option>
+            <option value="cat-study">Học tập</option>
+            <option value="cat-personal">Cá nhân</option>
+            <option value="cat-health">Sức khỏe</option>
+            <option value="cat-family">Gia đình</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="task-input-priority">Độ ưu tiên</label>
+          <select id="task-input-priority" class="form-select">
+            <option value="high">Cao 🔴</option>
+            <option value="medium" selected>Trung bình 🟡</option>
+            <option value="low">Thấp 🔵</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Collapsible Secondary Fields -->
+      <details style="margin: 12px 0;">
+        <summary style="font-size: 14px; font-weight: 600; cursor: pointer; color: var(--primary); padding: 6px 0;">
+          + Thêm chi tiết (Ghi chú, Việc con)
+        </summary>
+        <div style="margin-top: 12px;">
+          <div class="form-group">
+            <label class="form-label" for="task-input-notes">Ghi chú</label>
+            <textarea id="task-input-notes" class="form-textarea" rows="3" placeholder="Ghi chú thêm về công việc..."></textarea>
+          </div>
+
+          <div class="form-group">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <label class="form-label" style="margin: 0;">Danh sách việc con</label>
+              <button type="button" class="btn btn-ghost btn-sm" onclick="window.appActions.addSubtaskInput()">
+                + Thêm việc con
+              </button>
+            </div>
+            <div id="task-subtasks-editor"></div>
+          </div>
+        </div>
+      </details>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="window.appActions.closeModal('task-modal')">Hủy</button>
+        <button type="button" class="btn btn-primary" onclick="window.appActions.saveTaskFromModal()">Lưu công việc</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL / BOTTOM SHEET 2: CHI TIẾT VIỆC -->
+  <div id="task-detail-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal-panel">
+      <!-- Content populated dynamically -->
+    </div>
+  </div>
+
+  <!-- MODAL / BOTTOM SHEET 3: THÊM / SỬA SỰ KIỆN -->
+  <div id="event-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="event-modal-title" aria-hidden="true">
+    <div class="modal-panel">
+      <div class="modal-header">
+        <h2 id="event-modal-title" class="modal-title">Thêm sự kiện</h2>
+        <button type="button" class="btn btn-icon btn-ghost" onclick="window.appActions.closeModal('event-modal')" aria-label="Đóng">
+          <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+
+      <input type="hidden" id="event-edit-id">
+      <div id="event-form-error" class="form-error" role="alert"></div>
+
+      <!-- Collision warning alert banner -->
+      <div id="event-collision-alert" class="state-error" style="display: none; padding: 10px; margin-bottom: 12px; font-size: 13px;" role="alert">
+        <span class="font-bold">⚠️ Cảnh báo trùng lịch:</span> Đã có sự kiện khác trong khoảng giờ này!
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="event-input-title">Tên sự kiện <span class="text-danger">*</span></label>
+        <input type="text" id="event-input-title" class="form-input" placeholder="Ví dụ: Họp nhóm dự án..." required>
+      </div>
+
+      <div class="form-group" style="flex-direction: row; align-items: center; gap: 8px;">
+        <input type="checkbox" id="event-input-allday" onchange="window.appActions.checkEventCollisionLive()">
+        <label for="event-input-allday" style="font-size: 14px; font-weight: 500; cursor: pointer;">Sự kiện cả ngày</label>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+        <div class="form-group">
+          <label class="form-label" for="event-input-start-date">Ngày bắt đầu</label>
+          <input type="date" id="event-input-start-date" class="form-input" onchange="window.appActions.checkEventCollisionLive()">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="event-input-end-date">Ngày kết thúc</label>
+          <input type="date" id="event-input-end-date" class="form-input" onchange="window.appActions.checkEventCollisionLive()">
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+        <div class="form-group">
+          <label class="form-label" for="event-input-start-time">Giờ bắt đầu</label>
+          <input type="time" id="event-input-start-time" class="form-input" onchange="window.appActions.checkEventCollisionLive()">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="event-input-end-time">Giờ kết thúc</label>
+          <input type="time" id="event-input-end-time" class="form-input" onchange="window.appActions.checkEventCollisionLive()">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="event-input-location">Địa điểm</label>
+        <input type="text" id="event-input-location" class="form-input" placeholder="Phòng họp / Link Google Meet...">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="event-input-category">Danh mục</label>
+        <select id="event-input-category" class="form-select">
+          <option value="cat-work">Công việc</option>
+          <option value="cat-study">Học tập</option>
+          <option value="cat-personal">Cá nhân</option>
+          <option value="cat-health">Sức khỏe</option>
+          <option value="cat-family">Gia đình</option>
+        </select>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="window.appActions.closeModal('event-modal')">Hủy</button>
+        <button type="button" class="btn btn-primary" onclick="window.appActions.saveEventFromModal()">Lưu sự kiện</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container with aria-live -->
+  <div id="toast-container" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- ES Module Application Entrypoint -->
+  <script type="module" src="assets/js/app.js"></script>
+</body>
+</html>

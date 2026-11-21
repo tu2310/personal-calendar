@@ -1,0 +1,247 @@
+:root {
+  /* Colors - Light Theme */
+  --primary: #0284c7;
+  --primary-hover: #0369a1;
+  --primary-focus: rgba(2, 132, 199, 0.25);
+  --primary-light: #e0f2fe;
+  --primary-text: #0369a1;
+
+  --accent: #0d9488;
+  --accent-light: #ccfbf1;
+
+  --danger: #dc2626;
+  --danger-hover: #b91c1c;
+  --danger-light: #fee2e2;
+  --danger-text: #991b1b;
+
+  --warning: #d97706;
+  --warning-light: #fef3c7;
+  --warning-text: #92400e;
+
+  --success: #16a34a;
+  --success-light: #dcfce7;
+  --success-text: #166534;
+
+  --info: #4f46e5;
+  --info-light: #e0e7ff;
+  --info-text: #3730a3;
+
+  /* Categories */
+  --cat-work: #2563eb;
+  --cat-work-bg: #dbeafe;
+  --cat-study: #7c3aed;
+  --cat-study-bg: #ede9fe;
+  --cat-personal: #0d9488;
+  --cat-personal-bg: #ccfbf1;
+  --cat-health: #059669;
+  --cat-health-bg: #d1fae5;
+  --cat-family: #d97706;
+  --cat-family-bg: #fef3c7;
+
+  /* Surfaces & Neutral */
+  --bg-canvas: #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-surface-elevated: #ffffff;
+  --bg-subtle: #f1f5f9;
+  --bg-input: #ffffff;
+
+  --border-subtle: #e2e8f0;
+  --border-strong: #cbd5e1;
+
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --text-inverse: #ffffff;
+
+  /* Priority */
+  --priority-high: #dc2626;
+  --priority-medium: #d97706;
+  --priority-low: #2563eb;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.08);
+  --shadow-drawer: 0 -8px 24px rgba(0, 0, 0, 0.15);
+
+  /* Spacing Scale - Compact */
+  --space-1: 3px;
+  --space-2: 6px;
+  --space-3: 10px;
+  --space-4: 14px;
+  --space-5: 16px;
+  --space-6: 20px;
+  --space-8: 24px;
+  --space-10: 32px;
+
+  /* Typography Scale */
+  --font-xs: 0.75rem;     /* 12px */
+  --font-sm: 0.8125rem;   /* 13px */
+  --font-base: 0.9375rem; /* 15px */
+  --font-lg: 1.0625rem;   /* 17px */
+  --font-xl: 1.1875rem;   /* 19px */
+  --font-2xl: 1.375rem;   /* 22px */
+  --font-3xl: 1.625rem;   /* 26px */
+
+  --font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --line-height-tight: 1.25;
+  --line-height-normal: 1.4;
+
+  /* Radius */
+  --radius-sm: 5px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 18px;
+  --radius-full: 9999px;
+
+  /* Interaction */
+  --min-touch-target: 44px;
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Layout */
+  --sidebar-width: 220px;
+  --bottom-nav-height: 56px;
+  --header-height: 48px;
+  --max-content-width: 1080px;
+}
+
+/* Dark Theme Variables */
+[data-theme="dark"] {
+  --primary: #38bdf8;
+  --primary-hover: #7dd3fc;
+  --primary-focus: rgba(56, 189, 248, 0.35);
+  --primary-light: #082f49;
+  --primary-text: #bae6fd;
+
+  --accent: #2dd4bf;
+  --accent-light: #134e4a;
+
+  --danger: #f87171;
+  --danger-hover: #fca5a5;
+  --danger-light: #450a0a;
+  --danger-text: #fecaca;
+
+  --warning: #fbbf24;
+  --warning-light: #451a03;
+  --warning-text: #fef3c7;
+
+  --success: #4ade80;
+  --success-light: #052e16;
+  --success-text: #bbf7d0;
+
+  --info: #818cf8;
+  --info-light: #1e1b4b;
+  --info-text: #c7d2fe;
+
+  /* Categories */
+  --cat-work: #60a5fa;
+  --cat-work-bg: #1e3a8a;
+  --cat-study: #a78bfa;
+  --cat-study-bg: #2e1065;
+  --cat-personal: #2dd4bf;
+  --cat-personal-bg: #134e4a;
+  --cat-health: #34d399;
+  --cat-health-bg: #064e3b;
+  --cat-family: #fbbf24;
+  --cat-family-bg: #78350f;
+
+  /* Surfaces & Neutral */
+  --bg-canvas: #090d16;
+  --bg-surface: #131b2e;
+  --bg-surface-elevated: #1e293b;
+  --bg-subtle: #1e293b;
+  --bg-input: #172033;
+
+  --border-subtle: #27354f;
+  --border-strong: #3b4e6d;
+
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  --text-inverse: #090d16;
+
+  /* Priority */
+  --priority-high: #f87171;
+  --priority-medium: #fbbf24;
+  --priority-low: #60a5fa;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -2px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.6), 0 4px 6px -4px rgba(0, 0, 0, 0.5);
+  --shadow-drawer: 0 -8px 24px rgba(0, 0, 0, 0.7);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --primary: #38bdf8;
+    --primary-hover: #7dd3fc;
+    --primary-focus: rgba(56, 189, 248, 0.35);
+    --primary-light: #082f49;
+    --primary-text: #bae6fd;
+
+    --accent: #2dd4bf;
+    --accent-light: #134e4a;
+
+    --danger: #f87171;
+    --danger-hover: #fca5a5;
+    --danger-light: #450a0a;
+    --danger-text: #fecaca;
+
+    --warning: #fbbf24;
+    --warning-light: #451a03;
+    --warning-text: #fef3c7;
+
+    --success: #4ade80;
+    --success-light: #052e16;
+    --success-text: #bbf7d0;
+
+    --info: #818cf8;
+    --info-light: #1e1b4b;
+    --info-text: #c7d2fe;
+
+    --cat-work: #60a5fa;
+    --cat-work-bg: #1e3a8a;
+    --cat-study: #a78bfa;
+    --cat-study-bg: #2e1065;
+    --cat-personal: #2dd4bf;
+    --cat-personal-bg: #134e4a;
+    --cat-health: #34d399;
+    --cat-health-bg: #064e3b;
+    --cat-family: #fbbf24;
+    --cat-family-bg: #78350f;
+
+    --bg-canvas: #090d16;
+    --bg-surface: #131b2e;
+    --bg-surface-elevated: #1e293b;
+    --bg-subtle: #1e293b;
+    --bg-input: #172033;
+
+    --border-subtle: #27354f;
+    --border-strong: #3b4e6d;
+
+    --text-primary: #f8fafc;
+    --text-secondary: #cbd5e1;
+    --text-muted: #94a3b8;
+    --text-inverse: #090d16;
+
+    --priority-high: #f87171;
+    --priority-medium: #fbbf24;
+    --priority-low: #60a5fa;
+
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -2px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.6), 0 4px 6px -4px rgba(0, 0, 0, 0.5);
+    --shadow-drawer: 0 -8px 24px rgba(0, 0, 0, 0.7);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
