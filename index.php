@@ -47,7 +47,7 @@ if (str_starts_with($page, 'api-') && !Auth::check()) {
 }
 Auth::requireLogin();
 Auth::csrfToken();
-if (str_starts_with($page, 'api-') && $page !== 'api-settings-save') {
+if (str_starts_with($page, 'api-') && $page !== 'api-settings-save' && $page !== 'api-change-password') {
     session_write_close();
 }
 
@@ -168,9 +168,13 @@ if (str_starts_with($page, 'api-')) {
             exit;
         }
 
-        // 3.6. Cài đặt hệ thống
+        // 3.6. Cài đặt hệ thống & Bảo mật tài khoản
         if ($page === 'api-settings-save') {
             (new EventController())->apiSettingsSave();
+            exit;
+        }
+        if ($page === 'api-change-password') {
+            (new AuthController())->apiChangePassword();
             exit;
         }
 

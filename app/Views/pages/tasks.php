@@ -317,12 +317,12 @@ $repeatLabels = [
 
                         <div class="mt-2 pt-1">
                             <button type="button" class="btn-expand-multiday" id="btnToggleTaskEndDate">
-                                <i class="fa-solid fa-plus me-1"></i>Kéo dài nhiều ngày / Hạn chót
+                                <i class="fa-solid fa-plus me-1"></i>Thêm ngày kết thúc (việc nhiều ngày)
                             </button>
                         </div>
 
                         <div id="taskEndDateCollapse" class="multiday-collapse d-none mt-2 pt-2 border-top">
-                            <label for="taskModalEndDate" class="form-label mb-1">Ngày kết thúc / Hạn chót</label>
+                            <label for="taskModalEndDate" class="form-label mb-1">Ngày kết thúc</label>
                             <input type="date" class="form-control" id="taskModalEndDate" name="end_date">
                             <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">Việc kéo dài nhiều ngày sẽ hiển thị dạng thanh ghim gọn ở đầu ngày.</small>
                         </div>

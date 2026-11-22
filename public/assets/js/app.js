@@ -37,9 +37,6 @@ document.addEventListener('DOMContentLoaded', () => {
         document.documentElement.classList.toggle('dark', isDark);
         localStorage.setItem('personalCalendarTheme', isDark ? 'dark' : 'light');
         updateThemeIcon();
-        if (window.Toast) {
-            window.Toast.info(isDark ? 'Đã chuyển sang giao diện Tối (Dark mode).' : 'Đã chuyển sang giao diện Sáng (Light mode).', 'Giao diện');
-        }
     });
 
     function updateThemeIcon() {
@@ -317,8 +314,10 @@ function initNotificationCenter() {
                 let html = '';
                 items.forEach(item => {
                     const isUnread = item.is_read == 0;
-                    const typeClass = item.type === 'event' ? 'event' : (item.type === 'task' ? 'task' : 'system');
-                    const iconClass = item.type === 'event' ? 'fa-calendar-day' : (item.type === 'task' ? 'fa-list-check' : 'fa-bell');
+                    const refType = item.reference_type || '';
+
+                    let typeClass = item.type === 'event' ? 'event' : (item.type === 'task' ? 'task' : 'system');
+                    let iconClass = item.type === 'event' ? 'fa-calendar-day' : (item.type === 'task' ? 'fa-list-check' : 'fa-bell');
 
                     html += `
                         <div class="notif-item ${isUnread ? 'is-unread' : ''}" 
@@ -835,11 +834,6 @@ function initTaskCheckboxes() {
                 .then(res => res.json())
                 .then(data => {
                     if (data.success) {
-                        if (isChecked) {
-                            window.Toast?.success(data.message || 'Đã đánh dấu hoàn thành.');
-                        } else {
-                            window.Toast?.info(data.message || 'Đã chuyển về chưa hoàn thành.');
-                        }
                         if (data.stats) updateTaskStatsUI(data.stats);
                         window.refreshNotifications?.(data.unread_count);
 
@@ -875,7 +869,6 @@ function initTaskCheckboxes() {
                 .then(res => res.json())
                 .then(data => {
                     if (data.success) {
-                        window.Toast?.success(data.message || (isChecked ? 'Đã hoàn thành lịch trình.' : 'Đã khôi phục trạng thái.'));
                         window.refreshNotifications?.(data.unread_count);
                     } else {
                         revertTaskCheckboxState(row, check, isChecked);
@@ -1011,7 +1004,7 @@ function initTasksPage() {
             }
         } else {
             endDateCollapse.classList.add('d-none');
-            btnToggleTaskEndDate.innerHTML = '<i class="fa-solid fa-plus me-1"></i>Kéo dài nhiều ngày / Hạn chót';
+            btnToggleTaskEndDate.innerHTML = '<i class="fa-solid fa-plus me-1"></i>Thêm ngày kết thúc (việc nhiều ngày)';
             if (endDateInput) {
                 endDateInput.value = '';
                 endDateInput.removeAttribute('min');
@@ -1997,6 +1990,100 @@ function initSettingsPage() {
         localStorage.setItem('personalCalendarAutoRest', autoRestSwitch?.checked ? 'true' : 'false');
         window.Toast?.success('Lưu các tùy chọn nhắc nhở thành công!');
     });
+
+    // Ẩn / hiện mật khẩu
+    document.querySelectorAll('.btn-toggle-pwd').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const targetId = btn.dataset.target;
+            const input = document.getElementById(targetId);
+            if (!input) return;
+            const isPassword = input.type === 'password';
+            input.type = isPassword ? 'text' : 'password';
+            const icon = btn.querySelector('i');
+            if (icon) {
+                icon.className = isPassword ? 'fa-regular fa-eye-slash' : 'fa-regular fa-eye';
+            }
+        });
+    });
+
+    // Form Đổi mật khẩu & Bảo mật
+    const pwdForm = document.getElementById('changePasswordForm');
+    pwdForm?.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const currentPassword = document.getElementById('currentPassword')?.value || '';
+        const newPassword = document.getElementById('newPassword')?.value || '';
+        const confirmPassword = document.getElementById('confirmPassword')?.value || '';
+        const csrf = getCsrfToken();
+
+        if (!currentPassword || !newPassword || !confirmPassword) {
+            window.Toast?.warning('Vui lòng điền đầy đủ các thông tin mật khẩu!', 'Lưu ý!');
+            return;
+        }
+
+        if (newPassword.length < 6) {
+            window.Toast?.warning('Mật khẩu mới phải có tối thiểu 6 ký tự!', 'Mật khẩu quá ngắn');
+            return;
+        }
+
+        if (newPassword !== confirmPassword) {
+            window.Toast?.error('Mật khẩu xác nhận không khớp với mật khẩu mới!', 'Không khớp');
+            return;
+        }
+
+        if (currentPassword === newPassword) {
+            window.Toast?.warning('Mật khẩu mới không được trùng với mật khẩu hiện tại!', 'Lưu ý');
+            return;
+        }
+
+        const btn = document.getElementById('btnChangePassword');
+        const originalText = btn ? btn.innerHTML : '';
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>Đang xử lý...';
+        }
+
+        fetch('index.php?page=api-change-password', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrf
+            },
+            body: JSON.stringify({
+                current_password: currentPassword,
+                new_password: newPassword,
+                confirm_password: confirmPassword,
+                csrf_token: csrf
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+            if (data.success) {
+                window.Toast?.success(data.message || 'Đổi mật khẩu thành công!');
+                pwdForm.reset();
+                document.querySelectorAll('.btn-toggle-pwd').forEach(b => {
+                    const inp = document.getElementById(b.dataset.target);
+                    if (inp) inp.type = 'password';
+                    const ic = b.querySelector('i');
+                    if (ic) ic.className = 'fa-regular fa-eye';
+                });
+                window.refreshNotifications?.(data.unread_count);
+            } else {
+                window.Toast?.error(data.message || 'Không thể đổi mật khẩu.');
+            }
+        })
+        .catch(() => {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+            window.Toast?.error('Lỗi kết nối khi cập nhật mật khẩu.');
+        });
+    });
 }
 
 /**
@@ -2168,8 +2255,13 @@ function initEventModalController() {
 
     const startDateInput = document.getElementById('eventStartDate');
     const endDateInput = document.getElementById('eventEndDate');
-    const multiDayCollapse = document.getElementById('eventMultiDayCollapse');
-    const btnToggleEndDate = document.getElementById('btnToggleEventEndDate');
+    const multiDayToggle = document.getElementById('eventMultiDayToggle');
+    const startDateCol = document.getElementById('eventStartDateCol');
+    const startDateLabel = document.getElementById('eventStartDateLabel');
+    const endDateCol = document.getElementById('eventEndDateCol');
+    const timeInputsCol = document.getElementById('eventTimeInputsCol');
+    const timeInputsLabel = document.getElementById('eventTimeInputsLabel');
+    const multiDayHint = document.getElementById('eventMultiDayHint');
     const startTimeInput = document.getElementById('eventStartTime');
     const endTimeInput = document.getElementById('eventEndTime');
     const timeInputsWrap = document.getElementById('eventTimeInputsWrap');
@@ -2180,17 +2272,37 @@ function initEventModalController() {
 
     function setEventMultiDayExpanded(expanded, endDateVal = '') {
         const baseStart = startDateInput?.value || getTodayYmd();
-        if (!multiDayCollapse || !btnToggleEndDate) return;
+        if (multiDayToggle) multiDayToggle.checked = !!expanded;
+
         if (expanded) {
-            multiDayCollapse.classList.remove('d-none');
-            btnToggleEndDate.innerHTML = '<i class="fa-solid fa-minus me-1"></i>Thu gọn ngày kết thúc';
+            if (startDateCol) startDateCol.className = 'col-6 col-sm-6';
+            if (startDateLabel) startDateLabel.innerHTML = 'Từ ngày <span class="text-danger">*</span>';
+            if (endDateCol) {
+                endDateCol.className = 'col-6 col-sm-6';
+                endDateCol.classList.remove('d-none');
+            }
+            if (timeInputsCol) {
+                timeInputsCol.className = 'col-12 mt-2';
+            }
+            if (timeInputsLabel) {
+                timeInputsLabel.textContent = 'Khung giờ trong ngày';
+            }
+            if (multiDayHint) multiDayHint.classList.remove('d-none');
             if (endDateInput) {
                 endDateInput.min = baseStart;
-                endDateInput.value = endDateVal || baseStart;
+                endDateInput.value = (endDateVal && endDateVal >= baseStart) ? endDateVal : baseStart;
             }
         } else {
-            multiDayCollapse.classList.add('d-none');
-            btnToggleEndDate.innerHTML = '<i class="fa-solid fa-plus me-1"></i>Kéo dài nhiều ngày / Hạn chót';
+            if (startDateCol) startDateCol.className = 'col-12 col-sm-5';
+            if (startDateLabel) startDateLabel.innerHTML = 'Ngày thực hiện <span class="text-danger">*</span>';
+            if (endDateCol) endDateCol.classList.add('d-none');
+            if (timeInputsCol) {
+                timeInputsCol.className = 'col-12 col-sm-7';
+            }
+            if (timeInputsLabel) {
+                timeInputsLabel.textContent = 'Khung giờ';
+            }
+            if (multiDayHint) multiDayHint.classList.add('d-none');
             if (endDateInput) {
                 endDateInput.value = baseStart;
                 endDateInput.removeAttribute('min');
@@ -2212,16 +2324,15 @@ function initEventModalController() {
         updateReminderPreview();
     }
 
-    btnToggleEndDate?.addEventListener('click', () => {
-        const isHidden = multiDayCollapse?.classList.contains('d-none');
-        setEventMultiDayExpanded(!!isHidden, endDateInput?.value || startDateInput?.value || getTodayYmd());
+    multiDayToggle?.addEventListener('change', () => {
+        setEventMultiDayExpanded(multiDayToggle.checked, endDateInput?.value || startDateInput?.value || getTodayYmd());
     });
 
     allDayToggle?.addEventListener('change', syncEventAllDayUI);
 
     startDateInput?.addEventListener('change', () => {
         const sVal = startDateInput.value || getTodayYmd();
-        if (multiDayCollapse?.classList.contains('d-none')) {
+        if (!multiDayToggle?.checked) {
             if (endDateInput) endDateInput.value = sVal;
         } else if (endDateInput) {
             endDateInput.min = sVal;
@@ -2569,7 +2680,7 @@ function initEventModalController() {
 
         const title = document.getElementById('eventTitle')?.value.trim() || '';
         const sDate = startDateInput?.value || getTodayYmd();
-        const isMultiOpen = multiDayCollapse && !multiDayCollapse.classList.contains('d-none');
+        const isMultiOpen = multiDayToggle ? multiDayToggle.checked : false;
         const eDate = isMultiOpen ? (endDateInput?.value || sDate) : sDate;
 
         const rawStartTime = startTimeInput?.value || '';
@@ -2691,6 +2802,13 @@ function initFullCalendar() {
         initialView: initialView,
         locale: 'vi',
         timeZone: 'local',
+        views: {
+            dayGridMonth: {
+                type: 'dayGrid',
+                duration: { weeks: 4 }, // Bắt đầu từ tuần hiện tại (bỏ các tuần chết trong quá khứ)
+                buttonText: 'Tháng'
+            }
+        },
         allDaySlot: true,
         allDayText: 'Trong ngày',
         headerToolbar: hasCustomToolbar ? false : {
@@ -2708,8 +2826,17 @@ function initFullCalendar() {
         selectable: true,
         selectMirror: true,
         editable: true,
-        dayMaxEvents: 4,
+        dragRevertDuration: 0,
+        dragScroll: false,
+        eventDragMinDistance: 5,
+        dayMaxEvents: 2,
         moreLinkClick: 'popover',
+        moreLinkText: function(num) {
+            return `Xem thêm (${num})`;
+        },
+        dayCellContent: function(arg) {
+            return String(arg.date.getDate());
+        },
         events: function(fetchInfo, successCallback, failureCallback) {
             const url = new URL('index.php', window.location.href);
             url.searchParams.set('page', 'api-events');
@@ -2734,6 +2861,24 @@ function initFullCalendar() {
             hour12: false
         },
 
+        eventContent: function(arg) {
+            const cleanTime = arg.timeText ? (arg.timeText.match(/\b\d{1,2}:\d{2}\b/)?.[0] || arg.timeText) : '';
+            return {
+                html: `<div class="fc-event-time">${cleanTime}</div><div class="fc-event-title">${arg.event.title || ''}</div>`
+            };
+        },
+
+        eventDidMount: function(info) {
+            const timeEl = info.el.querySelector('.fc-event-time');
+            if (timeEl) {
+                const raw = timeEl.textContent || '';
+                const m = raw.match(/\b\d{1,2}:\d{2}\b/);
+                if (m && raw !== m[0]) {
+                    timeEl.textContent = m[0];
+                }
+            }
+        },
+
         datesSet: function(info) {
             const titleEl = document.getElementById('calendarTitleText');
             if (titleEl) {
@@ -2755,6 +2900,55 @@ function initFullCalendar() {
             window.openCalendarDetailModal?.(info.event);
         },
 
+        eventDragStart: function(info) {
+            window._draggingEventId = String(info.event.id);
+            window._draggingEventDate = formatToSqlDateOnly(info.event.start);
+            window._draggingEventStart = new Date(info.event.start);
+            window._draggingEventEnd = info.event.end ? new Date(info.event.end) : null;
+            window._draggingEventEl = info.el;
+        },
+
+        eventDragStop: function(info) {
+            const dragId = window._draggingEventId;
+            const origDate = window._draggingEventDate;
+            const origStart = window._draggingEventStart;
+            const origEnd = window._draggingEventEnd;
+            const draggedEl = window._draggingEventEl;
+
+            window._draggingEventId = null;
+            window._draggingEventDate = null;
+            window._draggingEventStart = null;
+            window._draggingEventEnd = null;
+            window._draggingEventEl = null;
+
+            if (!dragId || !origDate) return;
+
+            const clientX = info.jsEvent ? info.jsEvent.clientX : null;
+            const clientY = info.jsEvent ? info.jsEvent.clientY : null;
+            if (clientX === null || clientY === null) return;
+
+            // Kiểm tra ngay phần tử bên dưới con trỏ khi thả
+            const dropTarget = document.elementFromPoint(clientX, clientY);
+            if (!dropTarget) return;
+
+            const popoverEl = dropTarget.closest('.fc-popover');
+            const dayCell = dropTarget.closest('.fc-daygrid-day');
+
+            // Trường hợp 1: Thả ngay bên trong popover
+            if (popoverEl) {
+                handleSameDayEventMove(dragId, origDate, origStart, origEnd, popoverEl, null, clientY, draggedEl);
+                return;
+            }
+
+            // Trường hợp 2: Thả trên ô ngày của lịch (cùng ngày)
+            if (dayCell) {
+                const targetDate = dayCell.dataset.date;
+                if (targetDate && targetDate === origDate) {
+                    handleSameDayEventMove(dragId, origDate, origStart, origEnd, null, dayCell, clientY, draggedEl);
+                }
+            }
+        },
+
         eventDrop: function(info) {
             updateEventTime(info.event, info.revert);
         },
@@ -2766,47 +2960,6 @@ function initFullCalendar() {
 
     calendar.render();
     window.appCalendar = calendar;
-
-    // Giám sát và ép nền đặc (opaque) 100% bằng JS cho popover FullCalendar khi mở
-    const popoverObserver = new MutationObserver(() => {
-        document.querySelectorAll('.fc-popover').forEach(popover => {
-            const isDark = document.body.classList.contains('dark');
-            const bg = isDark ? '#19191b' : '#ffffff';
-            const border = isDark ? 'rgba(237,237,237,0.12)' : 'rgba(24,24,27,0.1)';
-            const headerBg = isDark ? '#232325' : '#f1f0ec';
-            const textColor = isDark ? '#ededed' : '#18181b';
-
-            popover.style.setProperty('background', bg, 'important');
-            popover.style.setProperty('background-color', bg, 'important');
-            popover.style.setProperty('border', `1px solid ${border}`, 'important');
-            popover.style.setProperty('border-radius', '12px', 'important');
-            popover.style.setProperty('box-shadow', '0 16px 40px rgba(0, 0, 0, 0.18)', 'important');
-            popover.style.setProperty('opacity', '1', 'important');
-            popover.style.setProperty('z-index', '99999', 'important');
-
-            const header = popover.querySelector('.fc-popover-header');
-            if (header) {
-                header.style.setProperty('background', headerBg, 'important');
-                header.style.setProperty('background-color', headerBg, 'important');
-                header.style.setProperty('border-bottom', `1px solid ${border}`, 'important');
-                header.style.setProperty('padding', '10px 14px', 'important');
-            }
-
-            const title = popover.querySelector('.fc-popover-title');
-            if (title) {
-                title.style.setProperty('color', textColor, 'important');
-                title.style.setProperty('font-weight', '600', 'important');
-            }
-
-            const body = popover.querySelector('.fc-popover-body');
-            if (body) {
-                body.style.setProperty('background', bg, 'important');
-                body.style.setProperty('background-color', bg, 'important');
-                body.style.setProperty('padding', '10px 12px', 'important');
-            }
-        });
-    });
-    popoverObserver.observe(document.body, { childList: true, subtree: true });
 
     // Kết nối các nút của Toolbar mới với FullCalendar API
     if (hasCustomToolbar) {
@@ -2841,7 +2994,6 @@ function initFullCalendar() {
                     document.querySelectorAll('.cat-chip').forEach(c => c.classList.remove('active'));
                     selectedCategoryId = catId;
                     chip.classList.add('active');
-                    window.Toast?.info(`Đang lọc theo danh mục: ${catName}`, 'Bộ lọc');
                 }
 
                 calendar.refetchEvents();
@@ -2881,8 +3033,6 @@ function initFullCalendar() {
         .then(res => res.json())
         .then(data => {
             if (data.success) {
-                window.Toast?.success(data.message || 'Đã cập nhật thời gian.');
-                calendar.refetchEvents();
                 window.refreshNotifications?.(data.unread_count);
             } else {
                 if (typeof revertCallback === 'function') revertCallback();
@@ -2894,6 +3044,227 @@ function initFullCalendar() {
             window.Toast?.error('Lỗi kết nối khi cập nhật thời gian sự kiện.');
         });
     }
+
+    // Xử lý kéo thả đổi vị trí và giờ giữa các sự kiện trong CÙNG 1 NGÀY (kể cả trong popover lẫn ngoài ô ngày)
+    function handleSameDayEventMove(dragId, targetDate, origStart, origEnd, popoverEl, dayCell, clientY, draggedEl) {
+        const allDayEvents = calendar.getEvents().filter(e => {
+            return formatToSqlDateOnly(e.start) === targetDate && !e.allDay;
+        });
+
+        if (allDayEvents.length <= 1) return;
+
+        const draggedEvent = calendar.getEventById(dragId);
+        if (!draggedEvent) return;
+
+        allDayEvents.sort((a, b) => a.start.getTime() - b.start.getTime());
+
+        const otherEvents = allDayEvents.filter(e => String(e.id) !== String(dragId));
+        if (otherEvents.length === 0) return;
+
+        let targetIndex = otherEvents.length;
+
+        // Nếu thả bên trong popover
+        if (popoverEl) {
+            const popoverBody = popoverEl.querySelector('.fc-popover-body') || popoverEl;
+            const itemEls = Array.from(popoverBody.querySelectorAll('.fc-daygrid-event-harness, .fc-daygrid-event')).filter(el => {
+                if (el.classList.contains('fc-event-dragging') || el.classList.contains('fc-event-mirror')) return false;
+                if (draggedEl && (el === draggedEl || el.contains(draggedEl))) return false;
+                return true;
+            });
+
+            if (itemEls.length > 0) {
+                for (let i = 0; i < itemEls.length; i++) {
+                    const rect = itemEls[i].getBoundingClientRect();
+                    const midY = rect.top + rect.height / 2;
+                    if (clientY < midY) {
+                        targetIndex = i;
+                        break;
+                    }
+                }
+            }
+        } else if (dayCell) {
+            // Thả trên ô ngày của lưới lịch
+            const eventEls = Array.from(dayCell.querySelectorAll('.fc-daygrid-event')).filter(el => {
+                if (el.classList.contains('fc-event-dragging') || el.classList.contains('fc-event-mirror')) return false;
+                if (el.classList.contains('fc-daygrid-more-link')) return false;
+                if (draggedEl && el === draggedEl) return false;
+                return true;
+            });
+
+            if (eventEls.length > 0) {
+                for (let i = 0; i < eventEls.length; i++) {
+                    const rect = eventEls[i].getBoundingClientRect();
+                    const midY = rect.top + rect.height / 2;
+                    if (clientY < midY) {
+                        targetIndex = i;
+                        break;
+                    }
+                }
+            }
+        }
+
+        const durMs = origEnd ? (origEnd.getTime() - origStart.getTime()) : 3600000;
+        let newStartTs;
+
+        if (targetIndex === 0) {
+            const firstStart = otherEvents[0].start.getTime();
+            newStartTs = firstStart - 1800000; // 30 phút trước sự kiện đầu tiên
+            const dayStartTs = new Date(`${targetDate}T00:00:00`).getTime();
+            if (newStartTs < dayStartTs) {
+                newStartTs = dayStartTs;
+            }
+        } else if (targetIndex >= otherEvents.length) {
+            const lastEv = otherEvents[otherEvents.length - 1];
+            const lastEnd = lastEv.end ? lastEv.end.getTime() : (lastEv.start.getTime() + 3600000);
+            newStartTs = lastEnd + 900000; // 15 phút sau sự kiện cuối cùng
+            const dayEndTs = new Date(`${targetDate}T23:59:00`).getTime();
+            if (newStartTs + durMs > dayEndTs) {
+                newStartTs = dayEndTs - durMs;
+            }
+        } else {
+            const prevStart = otherEvents[targetIndex - 1].start.getTime();
+            const nextStart = otherEvents[targetIndex].start.getTime();
+            newStartTs = Math.round((prevStart + nextStart) / 2);
+        }
+
+        const remainder = newStartTs % 300000;
+        if (remainder !== 0) {
+            newStartTs -= remainder;
+        }
+
+        const newStartDate = new Date(newStartTs);
+        const newEndDate = new Date(newStartTs + durMs);
+
+        const pad = n => String(n).padStart(2, '0');
+        const h = pad(newStartDate.getHours());
+        const m = pad(newStartDate.getMinutes());
+        const newTimeStr = `${h}:${m}`;
+
+        // 1. TỨC THÌ (OPTIMISTIC UPDATE - 0ms):
+        // Cập nhật ngày giờ trong FullCalendar EventApi ngay lập tức
+        draggedEvent.setDates(newStartDate, newEndDate);
+
+        // Hàm khử sạch chuỗi trùng lặp mốc giờ (ví dụ "22:2522:25" -> "22:25")
+        const sanitizeTimes = (root) => {
+            if (!root) return;
+            root.querySelectorAll('.fc-event-time').forEach(el => {
+                const raw = el.textContent || '';
+                const m = raw.match(/\b\d{1,2}:\d{2}\b/);
+                if (m && raw !== m[0]) {
+                    el.textContent = m[0];
+                }
+            });
+        };
+
+        // Nếu popover đang mở, sắp xếp lại thẻ DOM bên trong popover ngay tức thì
+        const currentPopover = popoverEl || document.querySelector('.fc-popover');
+        if (currentPopover) {
+            const popoverBody = currentPopover.querySelector('.fc-popover-body') || currentPopover;
+            const targetHarness = (draggedEl && draggedEl.closest('.fc-daygrid-event-harness')) || draggedEl;
+            if (targetHarness && popoverBody.contains(targetHarness)) {
+                const timeEl = targetHarness.querySelector('.fc-event-time');
+                if (timeEl) timeEl.textContent = newTimeStr;
+
+                const misc = popoverBody.querySelector('.fc-more-popover-misc');
+                if (misc) misc.remove();
+
+                const otherHarnesses = Array.from(popoverBody.children).filter(child => {
+                    return child !== targetHarness && child.classList.contains('fc-daygrid-event-harness');
+                });
+                if (targetIndex === 0) {
+                    if (otherHarnesses.length > 0) {
+                        popoverBody.insertBefore(targetHarness, otherHarnesses[0]);
+                    } else {
+                        popoverBody.prepend(targetHarness);
+                    }
+                } else if (targetIndex >= otherHarnesses.length) {
+                    popoverBody.appendChild(targetHarness);
+                } else {
+                    popoverBody.insertBefore(targetHarness, otherHarnesses[targetIndex]);
+                }
+            }
+
+            attachPopoverSanitizer();
+        }
+
+        // 2. LƯU DATABASE TRONG NỀN (BACKGROUND SYNC - KHÔNG CHẶN GIAO DIỆN)
+        const sStr = formatToSqlDateTime(newStartDate);
+        const eStr = formatToSqlDateTime(newEndDate);
+
+        fetch('index.php?page=api-event-time', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                id: dragId,
+                start_time: sStr,
+                end_time: eStr,
+                csrf_token: csrfToken
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                window.refreshNotifications?.(data.unread_count);
+                attachPopoverSanitizer();
+            } else {
+                draggedEvent.setDates(origStart, origEnd);
+                calendar.refetchEvents();
+                window.Toast?.error(data.message || 'Không thể đổi vị trí lịch.');
+            }
+        })
+        .catch(() => {
+            draggedEvent.setDates(origStart, origEnd);
+            calendar.refetchEvents();
+            window.Toast?.error('Lỗi kết nối khi cập nhật vị trí lịch.');
+        });
+    }
+
+    let popoverSanitizerObserver = null;
+    function attachPopoverSanitizer() {
+        const pop = document.querySelector('.fc-popover');
+        if (!pop) {
+            if (popoverSanitizerObserver) {
+                popoverSanitizerObserver.disconnect();
+                popoverSanitizerObserver = null;
+            }
+            return;
+        }
+
+        const clean = () => {
+            const misc = pop.querySelector('.fc-more-popover-misc');
+            if (misc) misc.remove();
+
+            pop.querySelectorAll('.fc-event-time').forEach(el => {
+                const raw = el.textContent || '';
+                const m = raw.match(/\b\d{1,2}:\d{2}\b/);
+                if (m && raw !== m[0]) {
+                    el.textContent = m[0];
+                }
+            });
+        };
+
+        clean();
+
+        if (popoverSanitizerObserver) {
+            popoverSanitizerObserver.disconnect();
+        }
+        popoverSanitizerObserver = new MutationObserver(() => {
+            clean();
+        });
+        popoverSanitizerObserver.observe(pop, {
+            childList: true,
+            subtree: true,
+            characterData: true
+        });
+    }
+
+    document.addEventListener('click', (e) => {
+        if (e.target.closest('.fc-daygrid-more-link') || e.target.closest('.fc-popover')) {
+            setTimeout(attachPopoverSanitizer, 30);
+        } else {
+            setTimeout(attachPopoverSanitizer, 80);
+        }
+    });
 
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('action') === 'new') {

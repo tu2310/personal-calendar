@@ -22,21 +22,30 @@ $modalTodayYmd = date('Y-m-d');
                         <input type="text" class="form-control" id="eventTitle" name="title" placeholder="VD: Họp định kỳ nhóm thiết kế, Khám sức khỏe" required maxlength="180">
                     </div>
 
-                    <!-- Khối Ngày thực hiện & Khung giờ gọn cho 1 ngày -->
+                    <!-- Khối Ngày thực hiện & Khung giờ -->
                     <div class="schedule-compact-box mb-3">
-                        <div class="row g-2 align-items-end">
-                            <div class="col-12 col-sm-5">
-                                <label for="eventStartDate" class="form-label">Ngày thực hiện <span class="text-danger">*</span></label>
+                        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2 pb-1 border-bottom">
+                            <label class="allday-inline-check" for="eventMultiDayToggle">
+                                <input type="checkbox" class="form-check-input m-0" id="eventMultiDayToggle">
+                                <span class="fw-medium">Sự kiện nhiều ngày</span>
+                            </label>
+                            <label class="allday-inline-check" for="eventAllDayToggle">
+                                <input type="checkbox" class="form-check-input m-0" id="eventAllDayToggle">
+                                <span>Chưa gắn giờ / Cả ngày</span>
+                            </label>
+                        </div>
+
+                        <div class="row g-2 align-items-end" id="eventDateRow">
+                            <div class="col-12 col-sm-5" id="eventStartDateCol">
+                                <label for="eventStartDate" class="form-label" id="eventStartDateLabel">Ngày thực hiện <span class="text-danger">*</span></label>
                                 <input type="date" class="form-control" id="eventStartDate" name="start_date" value="<?= $modalTodayYmd ?>" required>
                             </div>
-                            <div class="col-12 col-sm-7">
-                                <div class="d-flex justify-content-between align-items-center mb-1">
-                                    <label for="eventStartTime" class="form-label mb-0">Khung giờ</label>
-                                    <label class="allday-inline-check" for="eventAllDayToggle">
-                                        <input type="checkbox" class="form-check-input m-0" id="eventAllDayToggle">
-                                        <span>Chưa gắn giờ / Cả ngày</span>
-                                    </label>
-                                </div>
+                            <div class="col-12 col-sm-6 d-none" id="eventEndDateCol">
+                                <label for="eventEndDate" class="form-label" id="eventEndDateLabel">Đến ngày <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" id="eventEndDate" name="end_date" value="<?= $modalTodayYmd ?>">
+                            </div>
+                            <div class="col-12 col-sm-7" id="eventTimeInputsCol">
+                                <label for="eventStartTime" class="form-label mb-1" id="eventTimeInputsLabel">Khung giờ</label>
                                 <div class="time-range-inline" id="eventTimeInputsWrap">
                                     <input type="time" class="form-control" id="eventStartTime" name="start_time" value="08:00" aria-label="Giờ bắt đầu">
                                     <span class="time-range-sep">–</span>
@@ -45,16 +54,10 @@ $modalTodayYmd = date('Y-m-d');
                             </div>
                         </div>
 
-                        <div class="mt-2 pt-1">
-                            <button type="button" class="btn-expand-multiday" id="btnToggleEventEndDate">
-                                <i class="fa-solid fa-plus me-1"></i>Kéo dài nhiều ngày / Hạn chót
-                            </button>
-                        </div>
-
-                        <div id="eventMultiDayCollapse" class="multiday-collapse d-none mt-2 pt-2 border-top">
-                            <label for="eventEndDate" class="form-label mb-1">Ngày kết thúc / Hạn chót</label>
-                            <input type="date" class="form-control" id="eventEndDate" name="end_date" value="<?= $modalTodayYmd ?>">
-                            <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">Lịch kéo dài nhiều ngày hiển thị dạng thanh ghim gọn ở đầu ngày.</small>
+                        <div id="eventMultiDayHint" class="d-none mt-2 pt-2 border-top">
+                            <small class="text-muted" style="font-size: 0.75rem;">
+                                <i class="fa-solid fa-circle-info me-1 text-primary"></i>Dành cho chuyến công tác, kỳ nghỉ, hội thảo hoặc sự kiện diễn ra xuyên suốt nhiều ngày.
+                            </small>
                         </div>
                     </div>
 
@@ -79,30 +82,15 @@ $modalTodayYmd = date('Y-m-d');
                         </div>
                     </div>
 
-                    <div class="row g-2 mb-3">
-                        <div class="col-12 col-sm-6">
-                            <label for="eventLocation" class="form-label">Địa điểm</label>
-                            <div class="input-group">
-                                <span class="input-group-text"><i class="fa-solid fa-location-dot"></i></span>
-                                <input type="text" class="form-control" id="eventLocation" name="location" placeholder="Phòng họp, Google Meet...">
-                            </div>
-                        </div>
-                        <div class="col-6 col-sm-3">
-                            <label for="eventPriority" class="form-label">Ưu tiên</label>
-                            <select class="form-select" id="eventPriority" name="priority">
-                                <option value="low">Thấp</option>
-                                <option value="medium" selected>Trung bình</option>
-                                <option value="high">Cao</option>
-                            </select>
-                        </div>
-                        <div class="col-6 col-sm-3">
-                            <label for="eventStatus" class="form-label">Trạng thái</label>
-                            <select class="form-select" id="eventStatus" name="status">
-                                <option value="pending" selected>Chưa xong</option>
-                                <option value="completed">Đã xong</option>
-                            </select>
+                    <div class="mb-3">
+                        <label for="eventLocation" class="form-label">Địa điểm</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fa-solid fa-location-dot"></i></span>
+                            <input type="text" class="form-control" id="eventLocation" name="location" placeholder="Phòng họp, Google Meet...">
                         </div>
                     </div>
+                    <input type="hidden" id="eventPriority" name="priority" value="medium">
+                    <input type="hidden" id="eventStatus" name="status" value="pending">
 
                     <!-- NHẮC NHỞ -->
                     <div class="p-2 px-3 mb-3 rounded-3 border" style="background: var(--surface-2); border-color: var(--line) !important;">
@@ -193,7 +181,7 @@ $modalTodayYmd = date('Y-m-d');
                         <i class="fa-regular fa-bell me-2 text-warning" style="width: 16px;"></i>
                         <span id="detailReminderText">Không bật nhắc nhở</span>
                     </div>
-                    <div class="d-flex align-items-center gap-2 mt-1">
+                    <div class="d-flex align-items-center gap-2 mt-1" style="display: none;">
                         <span class="badge" id="detailPriorityBadge"></span>
                         <span class="badge" id="detailStatusBadge"></span>
                     </div>

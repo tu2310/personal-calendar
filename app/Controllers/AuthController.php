@@ -206,4 +206,89 @@ class AuthController
         header('Location: index.php?page=login');
         exit;
     }
+
+    public function apiChangePassword(): void
+    {
+        Auth::requireLogin();
+        header('Content-Type: application/json; charset=utf-8');
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            http_response_code(405);
+            echo json_encode(['success' => false, 'message' => 'Phương thức không được hỗ trợ.'], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+
+        $userId = Auth::id();
+        $input = [];
+        $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
+        if (str_contains($contentType, 'application/json')) {
+            $raw = file_get_contents('php://input');
+            $data = json_decode($raw, true);
+            $input = is_array($data) ? $data : [];
+        } else {
+            $input = $_POST;
+        }
+
+        $csrf = $input['csrf_token'] ?? ($_SERVER['HTTP_X_CSRF_TOKEN'] ?? '');
+        if (!Auth::verifyCsrf($csrf)) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'message' => 'Mã xác thực CSRF không hợp lệ.'], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+
+        $currentPassword = is_string($input['current_password'] ?? null) ? $input['current_password'] : '';
+        $newPassword = is_string($input['new_password'] ?? null) ? $input['new_password'] : '';
+        $confirmPassword = is_string($input['confirm_password'] ?? null) ? $input['confirm_password'] : '';
+
+        if (empty($currentPassword) || empty($newPassword) || empty($confirmPassword)) {
+            http_response_code(422);
+            echo json_encode(['success' => false, 'message' => 'Vui lòng nhập đầy đủ các trường mật khẩu.'], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+
+        if (strlen($newPassword) < 6) {
+            http_response_code(422);
+            echo json_encode(['success' => false, 'message' => 'Mật khẩu mới phải có tối thiểu 6 ký tự.'], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+
+        if (strlen($newPassword) > 128) {
+            http_response_code(422);
+            echo json_encode(['success' => false, 'message' => 'Mật khẩu mới không được vượt quá 128 ký tự.'], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+
+        if ($newPassword !== $confirmPassword) {
+            http_response_code(422);
+            echo json_encode(['success' => false, 'message' => 'Mật khẩu xác nhận không khớp với mật khẩu mới.'], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+
+        if ($currentPassword === $newPassword) {
+            http_response_code(422);
+            echo json_encode(['success' => false, 'message' => 'Mật khẩu mới không được trùng với mật khẩu hiện tại.'], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+
+        $user = $this->userModel->findWithPassword($userId);
+        if (!$user || empty($user['password']) || !password_verify($currentPassword, $user['password'])) {
+            http_response_code(422);
+            echo json_encode(['success' => false, 'message' => 'Mật khẩu hiện tại không chính xác.'], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+
+        $updated = $this->userModel->updatePassword($userId, $newPassword);
+        if (!$updated) {
+            http_response_code(500);
+            echo json_encode(['success' => false, 'message' => 'Đã có lỗi xảy ra khi cập nhật mật khẩu.'], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+
+        echo json_encode([
+            'success' => true,
+            'unread_count' => Notification::countUnread($userId),
+            'message' => 'Đổi mật khẩu thành công! Hãy ghi nhớ mật khẩu mới của bạn.'
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
 }

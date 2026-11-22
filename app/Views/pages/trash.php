@@ -78,7 +78,6 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.disabled = true;
             const data = await postTrash('api-task-restore', { id: Number(btn.dataset.id), type: btn.dataset.type || 'task' });
             if (data.success) {
-                window.Toast?.success(data.message || 'Đã khôi phục');
                 btn.closest('.task-row')?.remove();
                 window.refreshNotifications?.(data.unread_count);
                 if (!document.querySelector('#trashList .task-row')) location.reload();

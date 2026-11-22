@@ -5,6 +5,11 @@ class Notification
 {
     private PDO $db;
 
+    public const CRUD_TYPES = [
+        'event_created', 'task_created', 'event_updated', 'task_updated',
+        'event_trashed', 'task_trashed', 'habit_created'
+    ];
+
     public function __construct()
     {
         $this->db = Database::getConnection();
@@ -13,9 +18,11 @@ class Notification
     public function allForUser(int $userId, ?string $type = null, int $limit = 30): array
     {
         $limit = max(1, min(100, $limit));
+        $crudIn = "'" . implode("','", self::CRUD_TYPES) . "'";
         $sql = "
             SELECT * FROM notifications 
             WHERE user_id = :userId
+              AND (reference_type IS NULL OR reference_type NOT IN ($crudIn))
         ";
         $params = ['userId' => $userId];
 
@@ -34,16 +41,17 @@ class Notification
         $stmt->execute();
         $rows = $stmt->fetchAll();
 
-        foreach ($rows as &$item) {
+        $filtered = [];
+        foreach ($rows as $item) {
             $fallback = !empty($item['time_ago']) ? (string)$item['time_ago'] : 'Vừa xong';
             $item['time_ago'] = !empty($item['created_at'])
                 ? $this->formatTimeAgo((string)$item['created_at'], $fallback)
                 : $fallback;
             $item['action_url'] = self::sanitizeActionUrl(is_string($item['action_url'] ?? null) ? $item['action_url'] : null);
+            $filtered[] = $item;
         }
-        unset($item);
 
-        return $rows;
+        return $filtered;
     }
 
     public static function countUnread(int $userId): int
@@ -52,9 +60,11 @@ class Notification
             return 0;
         }
         $db = Database::getConnection();
+        $crudIn = "'" . implode("','", self::CRUD_TYPES) . "'";
         $stmt = $db->prepare("
             SELECT COUNT(*) FROM notifications 
             WHERE user_id = :userId AND is_read = 0
+              AND (reference_type IS NULL OR reference_type NOT IN ($crudIn))
         ");
         $stmt->execute(['userId' => $userId]);
         return (int)$stmt->fetchColumn();
@@ -141,7 +151,18 @@ class Notification
             'reference_id'   => !empty($refId) ? (int)$refId : null
         ]);
 
-        return (int)$this->db->lastInsertId();
+        $newId = (int)$this->db->lastInsertId();
+        return $newId;
+    }
+
+    /**
+     * Dọn sạch mọi thông báo rác Thêm, Sửa, Xóa khỏi danh sách thông báo.
+     */
+    public function pruneCrudNotifications(int $userId, int $max = 0): void
+    {
+        if ($userId <= 0) return;
+        $inClause = "'" . implode("','", self::CRUD_TYPES) . "'";
+        $this->db->exec("DELETE FROM notifications WHERE reference_type IN ($inClause) AND user_id = " . (int)$userId);
     }
 
     public static function hasNotificationToday(int $userId, string $referenceType, int $referenceId): bool

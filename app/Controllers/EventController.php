@@ -365,27 +365,8 @@ class EventController
             $status = $rawStatus === 'completed' ? 'completed' : 'pending';
             $ok = $this->eventModel->updateStatus($id, $userId, $status);
             if ($ok) {
-                if ($status === 'completed') {
-                    $this->notifModel->create(
-                        $userId,
-                        'Hoàn thành lịch trình: ' . $existing['title'],
-                        "Lịch trình \"{$existing['title']}\" đã được đánh dấu hoàn thành.",
-                        'event',
-                        'index.php?page=calendar&event_id=' . $id,
-                        'event_completed',
-                        $id
-                    );
-                } else {
+                if ($status !== 'completed') {
                     Event::resetReminder($userId, $id);
-                    $this->notifModel->create(
-                        $userId,
-                        'Cập nhật lịch trình: ' . $existing['title'],
-                        "Lịch trình \"{$existing['title']}\" đã được khôi phục trạng thái chưa hoàn thành.",
-                        'event',
-                        'index.php?page=calendar&event_id=' . $id,
-                        'event_updated',
-                        $id
-                    );
                 }
                 echo json_encode([
                     'success'      => true,
@@ -531,27 +512,6 @@ class EventController
             $ok = $this->eventModel->update($id, $userId, $data);
             if ($ok) {
                 Event::resetReminder($userId, $id);
-                if ($data['status'] === 'completed' && ($existing['status'] ?? '') !== 'completed') {
-                    $this->notifModel->create(
-                        $userId,
-                        'Hoàn thành lịch trình: ' . $title,
-                        "Lịch trình \"{$title}\" đã được đánh dấu hoàn thành.",
-                        'event',
-                        'index.php?page=calendar&event_id=' . $id,
-                        'event_completed',
-                        $id
-                    );
-                } else {
-                    $this->notifModel->create(
-                        $userId,
-                        'Cập nhật lịch trình: ' . $title,
-                        "Lịch trình \"{$title}\" đã được cập nhật (" . date('H:i d/m/Y', $startTimestamp) . ").",
-                        'event',
-                        'index.php?page=calendar&event_id=' . $id,
-                        'event_updated',
-                        $id
-                    );
-                }
                 echo json_encode([
                     'success'      => true,
                     'id'           => $id,
@@ -564,15 +524,6 @@ class EventController
         } else {
             $newId = $this->eventModel->create($userId, $data);
             if ($newId) {
-                $this->notifModel->create(
-                    $userId,
-                    'Đã thêm lịch trình mới: ' . $title,
-                    "Lịch trình \"{$title}\" diễn ra lúc " . date('H:i d/m/Y', $startTimestamp) . ".",
-                    'event',
-                    'index.php?page=calendar&event_id=' . $newId,
-                    'event_created',
-                    $newId
-                );
                 echo json_encode([
                     'success'      => true,
                     'message'      => 'Thêm lịch mới thành công!',
@@ -634,15 +585,6 @@ class EventController
         $ok = $this->eventModel->updateTime($id, $userId, date('Y-m-d H:i:s', $startTs), date('Y-m-d H:i:s', $endTs));
         if ($ok) {
             Event::resetReminder($userId, $id);
-            $this->notifModel->create(
-                $userId,
-                'Dời lịch trình: ' . $existing['title'],
-                "Lịch trình \"{$existing['title']}\" đã chuyển sang " . date('H:i d/m/Y', $startTs) . ".",
-                'event',
-                'index.php?page=calendar&event_id=' . $id,
-                'event_rescheduled',
-                $id
-            );
             echo json_encode([
                 'success'      => true,
                 'unread_count' => Notification::countUnread($userId),
@@ -689,15 +631,6 @@ class EventController
 
         $ok = $this->eventModel->delete($id, $userId);
         if ($ok) {
-            $this->notifModel->create(
-                $userId,
-                'Đã chuyển lịch vào thùng rác: ' . $existing['title'],
-                "Lịch trình \"{$existing['title']}\" đã được chuyển vào thùng rác.",
-                'event',
-                'index.php?page=trash',
-                'event_trashed',
-                $id
-            );
             echo json_encode([
                 'success'      => true,
                 'unread_count' => Notification::countUnread($userId),
@@ -855,16 +788,6 @@ class EventController
 
         // Cập nhật session
         $_SESSION['user']['name'] = $name;
-
-        $this->notifModel->create(
-            $userId,
-            'Cập nhật thông tin cá nhân',
-            "Họ tên hiển thị của bạn đã được cập nhật thành \"{$name}\".",
-            'system',
-            'index.php?page=settings',
-            'profile_updated',
-            $userId
-        );
 
         echo json_encode([
             'success'      => true,

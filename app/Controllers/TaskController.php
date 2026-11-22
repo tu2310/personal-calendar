@@ -276,28 +276,6 @@ class TaskController
 
             $ok = $this->taskModel->update($id, $userId, $data);
             if ($ok) {
-                if ($status === 'completed' && ($existing['status'] ?? '') !== 'completed') {
-                    $this->notifModel->create(
-                        $userId,
-                        'Hoàn thành công việc: ' . $title,
-                        "Bạn đã hoàn thành công việc \"{$title}\".",
-                        'task',
-                        'index.php?page=tasks&task_id=' . $id,
-                        'task_completed',
-                        $id
-                    );
-                } else {
-                    $this->notifModel->create(
-                        $userId,
-                        'Cập nhật công việc: ' . $title,
-                        "Công việc \"{$title}\" đã được cập nhật.",
-                        'task',
-                        'index.php?page=tasks&task_id=' . $id,
-                        'task_updated',
-                        $id
-                    );
-                }
-
                 echo json_encode([
                     'success'      => true,
                     'id'           => $id,
@@ -311,17 +289,6 @@ class TaskController
         } else {
             $newId = $this->taskModel->create($userId, $data);
             if ($newId) {
-                $dueText = $dueDate ? (' (Hạn: ' . date('d/m/Y', strtotime($dueDate)) . ')') : '';
-                $this->notifModel->create(
-                    $userId,
-                    'Đã thêm công việc mới: ' . $title,
-                    "Công việc \"{$title}\"{$dueText} đã được tạo.",
-                    'task',
-                    'index.php?page=tasks&task_id=' . $newId,
-                    'task_created',
-                    $newId
-                );
-
                 echo json_encode([
                     'success'      => true,
                     'message'      => 'Thêm công việc mới thành công!',
@@ -374,28 +341,6 @@ class TaskController
 
         $ok = $this->taskModel->updateStatus($id, $userId, $status);
         if ($ok) {
-            if ($status === 'completed') {
-                $this->notifModel->create(
-                    $userId,
-                    'Hoàn thành công việc: ' . $existing['title'],
-                    "Tuyệt vời! Bạn đã hoàn thành công việc \"{$existing['title']}\".",
-                    'task',
-                    'index.php?page=tasks&task_id=' . $id,
-                    'task_completed',
-                    $id
-                );
-            } else {
-                $this->notifModel->create(
-                    $userId,
-                    'Mở lại công việc: ' . $existing['title'],
-                    "Công việc \"{$existing['title']}\" đã được chuyển về chưa hoàn thành.",
-                    'task',
-                    'index.php?page=tasks&task_id=' . $id,
-                    'task_reopened',
-                    $id
-                );
-            }
-
             echo json_encode([
                 'success'      => true,
                 'status'       => $status,
@@ -443,16 +388,6 @@ class TaskController
 
         $ok = $this->taskModel->delete($id, $userId);
         if ($ok) {
-            $this->notifModel->create(
-                $userId,
-                'Đã chuyển việc vào thùng rác: ' . $existing['title'],
-                "Công việc \"{$existing['title']}\" đã được chuyển vào thùng rác.",
-                'task',
-                'index.php?page=trash',
-                'task_trashed',
-                $id
-            );
-
             echo json_encode([
                 'success'      => true,
                 'message'      => 'Đã chuyển công việc vào thùng rác.',
@@ -652,34 +587,8 @@ class TaskController
             require_once __DIR__ . '/../Models/Event.php';
             $eventModel = new Event();
             $ok = $id > 0 && $eventModel->restore($id, $userId);
-            if ($ok) {
-                $restored = $eventModel->findById($id, $userId);
-                $evTitle = $restored['title'] ?? ('#' . $id);
-                $this->notifModel->create(
-                    $userId,
-                    'Đã khôi phục lịch trình: ' . $evTitle,
-                    "Lịch trình \"{$evTitle}\" đã được khôi phục từ thùng rác.",
-                    'event',
-                    'index.php?page=calendar&event_id=' . $id,
-                    'event_restored',
-                    $id
-                );
-            }
         } else {
             $ok = $id > 0 && $this->taskModel->restore($id, $userId);
-            if ($ok) {
-                $restored = $this->taskModel->findById($id, $userId);
-                $tkTitle = $restored['title'] ?? ('#' . $id);
-                $this->notifModel->create(
-                    $userId,
-                    'Đã khôi phục công việc: ' . $tkTitle,
-                    "Công việc \"{$tkTitle}\" đã được khôi phục từ thùng rác.",
-                    'task',
-                    'index.php?page=tasks&task_id=' . $id,
-                    'task_restored',
-                    $id
-                );
-            }
         }
 
         echo json_encode([
@@ -747,18 +656,6 @@ class TaskController
         $ok1 = $this->taskModel->emptyTrash($userId);
         $ok2 = (new Event())->emptyTrash($userId);
         $ok = ($ok1 && $ok2);
-
-        if ($ok) {
-            $this->notifModel->create(
-                $userId,
-                'Đã dọn sạch thùng rác',
-                'Toàn bộ lịch trình và công việc trong thùng rác đã được xóa vĩnh viễn.',
-                'system',
-                'index.php?page=trash',
-                'trash_emptied',
-                null
-            );
-        }
 
         echo json_encode([
             'success'      => $ok,

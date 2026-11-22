@@ -26,6 +26,21 @@ class User
         return $user ?: null;
     }
 
+    public function findWithPassword(int $id): ?array
+    {
+        $stmt = $this->db->prepare("SELECT id, name, email, password, avatar, created_at FROM users WHERE id = :id LIMIT 1");
+        $stmt->execute(['id' => $id]);
+        $user = $stmt->fetch();
+        return $user ?: null;
+    }
+
+    public function updatePassword(int $id, string $newPassword): bool
+    {
+        $hash = password_hash($newPassword, PASSWORD_DEFAULT);
+        $stmt = $this->db->prepare("UPDATE users SET password = :password WHERE id = :id");
+        return $stmt->execute(['password' => $hash, 'id' => $id]);
+    }
+
     public function emailExists(string $email): bool
     {
         $stmt = $this->db->prepare("SELECT COUNT(*) FROM users WHERE email = :email");

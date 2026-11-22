@@ -137,17 +137,6 @@ class HabitController
         }
 
         $newId = $this->habitModel->create($userId, $payload);
-        if ($newId > 0) {
-            $this->notifModel->create(
-                $userId,
-                'Thói quen mới: ' . $name,
-                "Bạn đã bắt đầu theo dõi thói quen \"{$name}\". Hãy duy trì chuỗi ngày liên tiếp nhé!",
-                'system',
-                'index.php?page=habits',
-                'habit_created',
-                $newId
-            );
-        }
         $habits = $this->habitModel->allForUser($userId, 7);
         echo json_encode([
             'success'      => $newId > 0,
