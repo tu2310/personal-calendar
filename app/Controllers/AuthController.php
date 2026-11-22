@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/../Core/Auth.php';
 require_once __DIR__ . '/../Models/User.php';
+require_once __DIR__ . '/../Models/Notification.php';
 
 class AuthController
 {
@@ -31,7 +32,7 @@ class AuthController
             exit;
         }
 
-        $csrf = $_POST['csrf_token'] ?? '';
+        $csrf = is_string($_POST['csrf_token'] ?? null) ? $_POST['csrf_token'] : '';
         if (!Auth::verifyCsrf($csrf)) {
             Auth::setFlash('error', 'Mã xác thực CSRF không hợp lệ. Vui lòng thử lại.');
             Auth::setFlash('toast', ['type' => 'error', 'title' => 'Lỗi bảo mật', 'message' => 'Mã xác thực CSRF không hợp lệ.']);
@@ -39,8 +40,8 @@ class AuthController
             exit;
         }
 
-        $email = trim($_POST['email'] ?? '');
-        $password = $_POST['password'] ?? '';
+        $email = is_string($_POST['email'] ?? null) ? trim($_POST['email']) : '';
+        $password = is_string($_POST['password'] ?? null) ? $_POST['password'] : '';
 
         Auth::setFlash('old_email', $email);
 
@@ -100,7 +101,7 @@ class AuthController
             exit;
         }
 
-        $csrf = $_POST['csrf_token'] ?? '';
+        $csrf = is_string($_POST['csrf_token'] ?? null) ? $_POST['csrf_token'] : '';
         if (!Auth::verifyCsrf($csrf)) {
             Auth::setFlash('error', 'Mã bảo mật CSRF không hợp lệ.');
             Auth::setFlash('toast', ['type' => 'error', 'title' => 'Lỗi bảo mật', 'message' => 'Mã bảo mật CSRF không hợp lệ.']);
@@ -108,10 +109,10 @@ class AuthController
             exit;
         }
 
-        $name = trim($_POST['name'] ?? '');
-        $email = trim($_POST['email'] ?? '');
-        $password = $_POST['password'] ?? '';
-        $passwordConfirm = $_POST['password_confirm'] ?? '';
+        $name = is_string($_POST['name'] ?? null) ? trim($_POST['name']) : '';
+        $email = is_string($_POST['email'] ?? null) ? trim($_POST['email']) : '';
+        $password = is_string($_POST['password'] ?? null) ? $_POST['password'] : '';
+        $passwordConfirm = is_string($_POST['password_confirm'] ?? null) ? $_POST['password_confirm'] : '';
 
         Auth::setFlash('old_data', ['name' => $name, 'email' => $email]);
 
@@ -166,6 +167,16 @@ class AuthController
         // Tạo tài khoản mới
         $userId = $this->userModel->create($name, $email, $password);
         if ($userId) {
+            (new Notification())->create(
+                (int)$userId,
+                'Chào mừng đến với Personal Calendar!',
+                "Xin chào {$name}! Tài khoản của bạn đã sẵn sàng. Hãy bắt đầu lên lịch trình và công việc ngay hôm nay!",
+                'system',
+                'index.php?page=dashboard',
+                'welcome',
+                (int)$userId
+            );
+
             $user = $this->userModel->findById($userId);
             Auth::login($user);
             Auth::setFlash('toast', [

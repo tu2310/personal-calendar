@@ -54,7 +54,13 @@
                 ? options.title
                 : DEFAULT_TITLES[this.type];
             this.message = options.message || '';
-            this.duration = Number(options.duration) || DEFAULT_DURATIONS[this.type];
+            const rawDuration = (options.duration && typeof options.duration === 'object')
+                ? options.duration.duration
+                : options.duration;
+            const parsedDuration = Number(rawDuration);
+            this.duration = (Number.isFinite(parsedDuration) && parsedDuration > 0)
+                ? parsedDuration
+                : DEFAULT_DURATIONS[this.type];
 
             this.remaining = this.duration;
             this.startTime = null;
@@ -218,20 +224,26 @@
             return new ToastInstance(options);
         },
 
+        _resolveDuration(duration, fallback) {
+            const raw = (duration && typeof duration === 'object') ? duration.duration : duration;
+            const num = Number(raw);
+            return (Number.isFinite(num) && num > 0) ? num : fallback;
+        },
+
         success(message, title = DEFAULT_TITLES.success, duration = DEFAULT_DURATIONS.success) {
-            return this.show({ type: 'success', title, message, duration });
+            return this.show({ type: 'success', title, message, duration: this._resolveDuration(duration, DEFAULT_DURATIONS.success) });
         },
 
         error(message, title = DEFAULT_TITLES.error, duration = DEFAULT_DURATIONS.error) {
-            return this.show({ type: 'error', title, message, duration });
+            return this.show({ type: 'error', title, message, duration: this._resolveDuration(duration, DEFAULT_DURATIONS.error) });
         },
 
         warning(message, title = DEFAULT_TITLES.warning, duration = DEFAULT_DURATIONS.warning) {
-            return this.show({ type: 'warning', title, message, duration });
+            return this.show({ type: 'warning', title, message, duration: this._resolveDuration(duration, DEFAULT_DURATIONS.warning) });
         },
 
         info(message, title = DEFAULT_TITLES.info, duration = DEFAULT_DURATIONS.info) {
-            return this.show({ type: 'info', title, message, duration });
+            return this.show({ type: 'info', title, message, duration: this._resolveDuration(duration, DEFAULT_DURATIONS.info) });
         },
 
         clearAll() {

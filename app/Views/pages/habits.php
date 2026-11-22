@@ -520,6 +520,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
                 updateSummaryAndAnalytics(data.summary, data.habitWeekly, data.habits);
+                window.refreshNotifications?.(data.unread_count);
             } catch (err) {
                 btn.classList.toggle('is-checked', prevChecked);
                 btn.setAttribute('aria-pressed', prevChecked ? 'true' : 'false');
@@ -555,6 +556,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!data.success) {
                 throw new Error(data.message || 'Không thể lưu thói quen');
             }
+            window.refreshNotifications?.(data.unread_count);
             window.Toast?.success(data.message || 'Đã lưu thói quen');
             modal?.hide();
             location.reload();
@@ -602,6 +604,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 window.Toast?.success(data.message || 'Đã xóa thói quen');
                 row?.remove();
                 updateSummaryAndAnalytics(data.summary, data.habitWeekly, data.habits);
+                window.refreshNotifications?.(data.unread_count);
                 if (!document.querySelector('#habitList .habit-row')) {
                     location.reload();
                 }

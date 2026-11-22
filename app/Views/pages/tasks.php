@@ -10,107 +10,78 @@ $stats = $data['stats'] ?? [
     'overdue'          => 0,
     'progress_percent' => 0
 ];
-$csrfToken = $data['csrf_token'] ?? '';
+$csrfToken = $data['csrf_token'] ?? Auth::csrfToken();
+$todayYmd = date('Y-m-d');
+
+$repeatLabels = [
+    'daily'   => 'Hằng ngày',
+    'weekly'  => 'Hằng tuần',
+    'monthly' => 'Hằng tháng',
+];
 ?>
 <section class="welcome-row">
     <div>
-        <div class="eyebrow">Danh sách công việc</div>
-        <h1>Quản lý công việc</h1>
-        <p class="page-subtitle">Theo dõi hạn chót, mức độ ưu tiên và tiến độ hoàn thành</p>
+        <div class="eyebrow"><span class="eyebrow-dot"></span>Từ hôm nay trở đi</div>
+        <h1>Tasks</h1>
+        <p class="page-subtitle">Các đầu việc từ hôm nay trở đi và việc quá hạn chưa hoàn thành</p>
     </div>
     <div class="d-flex gap-2">
-        <button class="btn btn-primary-soft" id="btnOpenAddTaskModal">
-            <i class="fa-solid fa-plus"></i><span>Thêm công việc</span>
+        <button type="button" class="btn btn-primary-soft" id="btnOpenAddTaskModal">
+            <i class="fa-solid fa-plus"></i><span>Thêm đầu việc</span>
         </button>
     </div>
 </section>
 
-<!-- CẢNH BÁO DEADLINE QUÁ HẠN -->
-<div id="taskOverdueBanner" class="alert alert-danger d-flex align-items-center justify-content-between p-3 mb-4 rounded-3 border-danger-subtle" style="<?= empty($stats['overdue']) ? 'display: none !important;' : '' ?>">
-    <div class="d-flex align-items-center gap-3">
-        <div class="rounded-2 p-2 bg-danger text-white d-flex align-items-center justify-content-center" style="width: 2.25rem; height: 2.25rem;">
-            <i class="fa-solid fa-triangle-exclamation"></i>
-        </div>
-        <div>
-            <strong class="text-danger d-block">Có <span id="taskOverdueBannerNum"><?= $stats['overdue'] ?? 0 ?></span> công việc đã quá hạn</strong>
-            <small class="text-muted">Các công việc này đã quá hạn hoàn thành, cần ưu tiên xử lý trước</small>
-        </div>
+<!-- CẢNH BÁO VIỆC QUÁ HẠN -->
+<div id="taskOverdueBanner" class="task-overdue-strip mb-3" style="<?= empty($stats['overdue']) ? 'display: none !important;' : '' ?>">
+    <div class="d-flex align-items-center gap-2 min-w-0">
+        <span class="today-overdue-dot"></span>
+        <span class="task-overdue-strip-text">
+            Đang có <strong id="taskOverdueBannerNum"><?= (int)($stats['overdue'] ?? 0) ?></strong> đầu việc quá hạn chưa hoàn thành được ghim ở đầu danh sách
+        </span>
     </div>
-    <button type="button" class="btn btn-sm btn-danger px-3" onclick="document.querySelector('.task-status-tab[data-status=\'overdue\']')?.click()">
-        Xem việc quá hạn
+    <button type="button" class="btn btn-sm btn-light flex-shrink-0" onclick="document.querySelector('.task-status-tab[data-status=\'overdue\']')?.click()">
+        Lọc quá hạn
     </button>
 </div>
 
-<!-- THẺ TIẾN ĐỘ VÀ THỐNG KÊ CÔNG VIỆC -->
-<div class="panel mb-4 p-4">
-    <div class="row align-items-center g-4">
-        <div class="col-lg-5 border-end-lg">
-            <div class="d-flex justify-content-between align-items-center mb-2">
-                <span class="fw-medium" style="font-size: 0.875rem;">Tiến độ hoàn thành</span>
-                <span class="fw-medium" style="font-family: var(--font-mono); font-size: 1rem; color: var(--primary);" id="taskStatPercentBadge"><?= $stats['progress_percent'] ?>%</span>
+<!-- THANH TIẾN ĐỘ & BỘ LỌC GỌN -->
+<div class="panel mb-3 p-3">
+    <div class="task-compact-summary mb-3 pb-3 border-bottom">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+            <div class="today-progress-copy">
+                Hoàn thành <strong id="taskStatCompletedCount"><?= (int)$stats['completed'] ?></strong>/<span id="taskStatTotalCount"><?= (int)$stats['total'] ?></span> đầu việc
+                <span class="text-muted ms-1">(<span id="taskStatPercentBadge"><?= (int)$stats['progress_percent'] ?>%</span>)</span>
             </div>
-            <div class="progress" style="height: 8px; border-radius: 4px; background: var(--surface-2);">
-                <div class="progress-bar" 
-                     id="taskStatProgressBar"
-                     role="progressbar" 
-                     style="width: <?= $stats['progress_percent'] ?>%; background: var(--primary);" 
-                     aria-valuenow="<?= $stats['progress_percent'] ?>" 
-                     aria-valuemin="0" 
-                     aria-valuemax="100"></div>
-            </div>
-            <div class="d-flex justify-content-between mt-2 text-muted" style="font-size: 0.75rem; font-variant-numeric: tabular-nums;">
-                <span>Đã làm: <b class="text-success" id="taskStatCompletedCount"><?= $stats['completed'] ?></b></span>
-                <span>Còn lại: <b class="text-warning" id="taskStatPendingCount"><?= $stats['pending'] ?></b></span>
-                <span>Tổng: <b id="taskStatTotalCount"><?= $stats['total'] ?></b></span>
+            <div class="task-summary-pills">
+                <span>Chờ xử lý: <b id="statPendingNum"><?= (int)$stats['pending'] ?></b><span class="d-none" id="taskStatPendingCount"><?= (int)$stats['pending'] ?></span></span>
+                <span>Quá hạn: <b class="text-danger" id="statOverdueNum"><?= (int)$stats['overdue'] ?></b></span>
+                <span>Khẩn cấp: <b id="statUrgentNum"><?= (int)$stats['urgent'] ?></b></span>
+                <span class="d-none" id="statCompletedNum"><?= (int)$stats['completed'] ?></span>
             </div>
         </div>
-
-        <div class="col-lg-7">
-            <div class="row g-2 text-center">
-                <div class="col-3">
-                    <div class="p-2 rounded border" style="background: var(--surface-2);">
-                        <div class="fs-4 fw-medium text-success" style="font-family: var(--font-mono);" id="statCompletedNum"><?= $stats['completed'] ?></div>
-                        <small class="text-muted" style="font-size: 0.75rem;">Hoàn thành</small>
-                    </div>
-                </div>
-                <div class="col-3">
-                    <div class="p-2 rounded border" style="background: var(--surface-2);">
-                        <div class="fs-4 fw-medium text-warning" style="font-family: var(--font-mono);" id="statPendingNum"><?= $stats['pending'] ?></div>
-                        <small class="text-muted" style="font-size: 0.75rem;">Chờ xử lý</small>
-                    </div>
-                </div>
-                <div class="col-3">
-                    <div class="p-2 rounded border" style="background: var(--surface-2);">
-                        <div class="fs-4 fw-medium text-danger" style="font-family: var(--font-mono);" id="statOverdueNum"><?= $stats['overdue'] ?></div>
-                        <small class="text-muted" style="font-size: 0.75rem;">Quá hạn</small>
-                    </div>
-                </div>
-                <div class="col-3">
-                    <div class="p-2 rounded border" style="background: var(--surface-2);">
-                        <div class="fs-4 fw-medium text-danger" style="font-family: var(--font-mono);" id="statUrgentNum"><?= $stats['urgent'] ?></div>
-                        <small class="text-muted" style="font-size: 0.75rem;">Khẩn cấp</small>
-                    </div>
-                </div>
-            </div>
+        <div class="today-progress-track">
+            <div class="today-progress-fill"
+                 id="taskStatProgressBar"
+                 role="progressbar"
+                 style="width: <?= (int)$stats['progress_percent'] ?>%;"
+                 aria-valuenow="<?= (int)$stats['progress_percent'] ?>"
+                 aria-valuemin="0"
+                 aria-valuemax="100"></div>
         </div>
     </div>
-</div>
 
-<!-- THANH CÔNG CỤ TÌM KIẾM, LỌC VÀ SẮP XẾP -->
-<div class="panel mb-3 p-3">
     <div class="row g-2 align-items-center">
-        <!-- Tìm kiếm theo tên -->
-        <div class="col-md-4">
+        <div class="col-12 col-md-4">
             <div class="input-group input-group-sm">
                 <span class="input-group-text bg-transparent border-end-0"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
-                <input type="text" class="form-control border-start-0" id="taskSearchInput" placeholder="Tìm công việc theo tên" value="<?= htmlspecialchars($_GET['search'] ?? '') ?>">
+                <input type="text" class="form-control border-start-0" id="taskSearchInput" placeholder="Tìm theo tên đầu việc" value="<?= htmlspecialchars($_GET['search'] ?? '') ?>" aria-label="Tìm theo tên đầu việc">
             </div>
         </div>
 
-        <!-- Lọc theo mức độ ưu tiên -->
-        <div class="col-sm-6 col-md-2">
-            <select class="form-select form-select-sm" id="taskPriorityFilter">
-                <option value="all">Mọi mức ưu tiên</option>
+        <div class="col-6 col-md-2">
+            <select class="form-select form-select-sm" id="taskPriorityFilter" aria-label="Lọc mức ưu tiên">
+                <option value="all">Mọi ưu tiên</option>
                 <option value="urgent" <?= ($_GET['priority'] ?? '') === 'urgent' ? 'selected' : '' ?>>Khẩn cấp</option>
                 <option value="high" <?= ($_GET['priority'] ?? '') === 'high' ? 'selected' : '' ?>>Cao</option>
                 <option value="medium" <?= ($_GET['priority'] ?? '') === 'medium' ? 'selected' : '' ?>>Trung bình</option>
@@ -118,69 +89,75 @@ $csrfToken = $data['csrf_token'] ?? '';
             </select>
         </div>
 
-        <!-- Lọc theo danh mục -->
-        <div class="col-sm-6 col-md-3">
-            <select class="form-select form-select-sm" id="taskCategoryFilter">
-                <option value="">-- Mọi danh mục --</option>
+        <div class="col-6 col-md-3">
+            <select class="form-select form-select-sm" id="taskCategoryFilter" aria-label="Lọc danh mục">
+                <option value="">Mọi danh mục</option>
                 <?php foreach ($categories as $cat): ?>
-                    <option value="<?= $cat['id'] ?>" <?= ($_GET['category_id'] ?? '') == $cat['id'] ? 'selected' : '' ?>>
+                    <option value="<?= (int)$cat['id'] ?>" <?= ($_GET['category_id'] ?? '') == $cat['id'] ? 'selected' : '' ?>>
                         <?= htmlspecialchars($cat['name']) ?>
                     </option>
                 <?php endforeach; ?>
             </select>
         </div>
 
-        <!-- Sắp xếp -->
-        <div class="col-md-3">
-            <select class="form-select form-select-sm" id="taskSortSelect">
-                <option value="due_asc" <?= ($_GET['sort'] ?? '') === 'due_asc' ? 'selected' : '' ?>>⏳ Hạn hoàn thành: Gần nhất</option>
-                <option value="due_desc" <?= ($_GET['sort'] ?? '') === 'due_desc' ? 'selected' : '' ?>>⌛ Hạn hoàn thành: Xa nhất</option>
-                <option value="priority_desc" <?= ($_GET['sort'] ?? '') === 'priority_desc' ? 'selected' : '' ?>>⚡ Ưu tiên: Cao đến Thấp</option>
-                <option value="created_desc" <?= ($_GET['sort'] ?? 'created_desc') === 'created_desc' ? 'selected' : '' ?>>📅 Ngày tạo: Mới nhất</option>
-                <option value="created_asc" <?= ($_GET['sort'] ?? '') === 'created_asc' ? 'selected' : '' ?>>📅 Ngày tạo: Cũ nhất</option>
+        <div class="col-12 col-md-3">
+            <?php $sortCurrent = $_GET['sort'] ?? 'due_asc'; ?>
+            <select class="form-select form-select-sm" id="taskSortSelect" aria-label="Sắp xếp công việc">
+                <option value="due_asc" <?= $sortCurrent === 'due_asc' ? 'selected' : '' ?>>Ngày thực hiện: Gần nhất</option>
+                <option value="due_desc" <?= $sortCurrent === 'due_desc' ? 'selected' : '' ?>>Ngày thực hiện: Xa nhất</option>
+                <option value="priority_desc" <?= $sortCurrent === 'priority_desc' ? 'selected' : '' ?>>Ưu tiên: Cao đến Thấp</option>
+                <option value="created_desc" <?= $sortCurrent === 'created_desc' ? 'selected' : '' ?>>Ngày tạo: Mới nhất</option>
+                <option value="created_asc" <?= $sortCurrent === 'created_asc' ? 'selected' : '' ?>>Ngày tạo: Cũ nhất</option>
             </select>
         </div>
     </div>
 
     <!-- Filter Tabs trạng thái -->
-    <div class="d-flex flex-wrap gap-2 mt-3 pt-2 border-top" id="taskStatusFilters">
-        <button type="button" class="btn btn-sm btn-light active task-status-tab" data-status="all" style="border-radius: 8px; font-weight: 600;">
-            Tất cả <span class="badge bg-secondary-subtle text-dark ms-1" id="tabCountAll"><?= $stats['total'] ?></span>
+    <?php $initStatusTab = $_GET['status'] ?? 'all'; ?>
+    <div class="task-filter-tabs mt-3 pt-2 border-top" id="taskStatusFilters">
+        <button type="button" class="btn btn-sm btn-light task-status-tab <?= $initStatusTab === 'all' ? 'active' : '' ?>" data-status="all">
+            Tất cả <span class="badge bg-secondary-subtle text-dark ms-1" id="tabCountAll"><?= (int)$stats['total'] ?></span>
         </button>
-        <button type="button" class="btn btn-sm btn-light task-status-tab" data-status="pending" style="border-radius: 8px; font-weight: 600;">
-            Chưa hoàn thành <span class="badge bg-warning-subtle text-warning ms-1" id="tabCountPending"><?= $stats['pending'] ?></span>
+        <button type="button" class="btn btn-sm btn-light task-status-tab <?= $initStatusTab === 'pending' ? 'active' : '' ?>" data-status="pending">
+            Chưa xong <span class="badge bg-warning-subtle text-warning ms-1" id="tabCountPending"><?= (int)$stats['pending'] ?></span>
         </button>
-        <button type="button" class="btn btn-sm btn-light task-status-tab" data-status="completed" style="border-radius: 8px; font-weight: 600;">
-            Đã hoàn thành <span class="badge bg-success-subtle text-success ms-1" id="tabCountCompleted"><?= $stats['completed'] ?></span>
+        <button type="button" class="btn btn-sm btn-light task-status-tab <?= $initStatusTab === 'completed' ? 'active' : '' ?>" data-status="completed">
+            Đã xong <span class="badge bg-success-subtle text-success ms-1" id="tabCountCompleted"><?= (int)$stats['completed'] ?></span>
         </button>
-        <button type="button" class="btn btn-sm btn-light task-status-tab" data-status="overdue" style="border-radius: 8px; font-weight: 600;">
-            Quá hạn <span class="badge bg-danger-subtle text-danger ms-1" id="tabCountOverdue"><?= $stats['overdue'] ?></span>
+        <button type="button" class="btn btn-sm btn-light task-status-tab <?= $initStatusTab === 'overdue' ? 'active' : '' ?>" data-status="overdue">
+            Quá hạn <span class="badge bg-danger-subtle text-danger ms-1" id="tabCountOverdue"><?= (int)$stats['overdue'] ?></span>
         </button>
     </div>
 </div>
 
-<!-- DANH SÁCH CÔNG VIỆC -->
+<!-- DANH SÁCH ĐẦU VIỆC -->
 <div class="panel p-0 overflow-hidden position-relative">
     <div id="taskLoadingOverlay" class="task-loading-overlay" style="display: none;">
         <div class="spinner-border text-primary" role="status"></div>
     </div>
 
-    <div class="task-list px-3 py-2" id="taskListContainer">
+    <div class="task-list" id="taskListContainer" data-initial-status="<?= htmlspecialchars($initStatusTab) ?>">
         <?php if (empty($tasks)): ?>
             <div class="empty-calendar py-5 text-center">
-                <div class="empty-icon"><i class="fa-solid fa-list-check"></i></div>
-                <h2>Chưa có công việc nào</h2>
-                <p>Hãy bắt đầu bằng cách thêm công việc mới hoặc thử thay đổi bộ lọc tìm kiếm.</p>
-                <button class="btn btn-primary-soft" onclick="document.getElementById('btnOpenAddTaskModal').click()">
-                    <i class="fa-solid fa-plus me-2"></i>Tạo công việc đầu tiên
+                <div class="empty-icon"><i class="fa-regular fa-circle-check"></i></div>
+                <h2>Chưa có đầu việc nào</h2>
+                <p>Thêm đầu việc cho hôm nay hoặc những ngày kế tiếp để theo dõi tập trung tại một nơi.</p>
+                <button type="button" class="btn btn-primary-soft" onclick="document.getElementById('btnOpenAddTaskModal').click()">
+                    <i class="fa-solid fa-plus me-1"></i>Tạo đầu việc mới
                 </button>
             </div>
         <?php else: ?>
-            <?php foreach ($tasks as $task): 
-                $isDone = ($task['status'] === 'completed' || $task['is_completed'] == 1);
-                $isOverdue = (!empty($task['due_date']) && !$isDone && $task['due_date'] < date('Y-m-d'));
+            <?php foreach ($tasks as $task):
+                $dueDate = trim((string)($task['due_date'] ?? ''));
+                $endDate = trim((string)($task['end_date'] ?? ''));
+                $effectiveDueDate = $endDate !== '' ? $endDate : $dueDate;
+                $hasMultiDay = ($endDate !== '' && $dueDate !== '' && $endDate > $dueDate);
+
+                $isDone = (($task['status'] ?? '') === 'completed' || !empty($task['is_completed']));
+                $rawOverdue = ($effectiveDueDate !== '' && $effectiveDueDate < $todayYmd);
+                $isOverdue = ($rawOverdue && !$isDone);
                 $p = $task['priority'] ?? 'medium';
-                
+
                 $pClass = 'medium';
                 $pText = 'Trung bình';
                 if ($p === 'urgent') {
@@ -193,67 +170,102 @@ $csrfToken = $data['csrf_token'] ?? '';
                     $pClass = 'low';
                     $pText = 'Thấp';
                 }
+
+                $startTimeRaw = trim((string)($task['start_time'] ?? ''));
+                $endTimeRaw = trim((string)($task['end_time'] ?? ''));
+                $startHm = $startTimeRaw !== '' ? substr($startTimeRaw, 0, 5) : '';
+                $endHm = $endTimeRaw !== '' ? substr($endTimeRaw, 0, 5) : '';
+                $timeRangeText = '';
+                if ($startHm !== '' && $endHm !== '') {
+                    $timeRangeText = $startHm . ' – ' . $endHm;
+                } elseif ($startHm !== '') {
+                    $timeRangeText = $startHm;
+                }
+
+                $repeatType = (string)($task['repeat_type'] ?? 'none');
             ?>
-            <div class="task-row align-items-center justify-content-between py-3 px-2 border-bottom <?= $isDone ? 'is-done' : '' ?> <?= $isOverdue ? 'is-overdue' : '' ?>" 
-                 data-id="<?= $task['id'] ?>" 
-                 data-status="<?= $isDone ? 'completed' : 'pending' ?>" 
-                 data-priority="<?= $p ?>"
-                 data-category-id="<?= $task['category_id'] ?? '' ?>"
-                 data-due-date="<?= $task['due_date'] ?? '' ?>"
-                 data-created-at="<?= $task['created_at'] ?>">
-                
-                <label class="d-flex align-items-start gap-3 m-0 flex-grow-1 cursor-pointer">
-                    <input type="checkbox" class="task-check mt-1" data-id="<?= $task['id'] ?>" <?= $isDone ? 'checked' : '' ?>>
+            <div class="task-row tasks-page-row <?= $isDone ? 'is-done' : '' ?> <?= $isOverdue ? 'is-overdue' : '' ?> <?= $hasMultiDay ? 'is-multiday' : '' ?>"
+                 data-id="<?= (int)$task['id'] ?>"
+                 data-is-task="1"
+                 data-is-overdue="<?= $rawOverdue ? '1' : '0' ?>"
+                 data-status="<?= $isDone ? 'completed' : 'pending' ?>"
+                 data-priority="<?= htmlspecialchars($p) ?>"
+                 data-category-id="<?= htmlspecialchars((string)($task['category_id'] ?? '')) ?>"
+                 data-due-date="<?= htmlspecialchars($dueDate) ?>"
+                 data-end-date="<?= htmlspecialchars($endDate) ?>"
+                 data-created-at="<?= htmlspecialchars((string)($task['created_at'] ?? '')) ?>">
+
+                <?php if ($hasMultiDay): ?>
+                    <span class="today-multiday-pin" aria-hidden="true"></span>
+                <?php endif; ?>
+
+                <label class="task-check-wrap" aria-label="Đánh dấu hoàn thành <?= htmlspecialchars($task['title']) ?>">
+                    <input type="checkbox" class="task-check" data-id="<?= (int)$task['id'] ?>" data-is-task="1" <?= $isDone ? 'checked' : '' ?>>
                     <span class="custom-check"><i class="fa-solid fa-check"></i></span>
-                    <div class="task-copy">
-                        <strong class="fs-6 d-block"><?= htmlspecialchars($task['title']) ?></strong>
-                        
-                        <?php if (!empty($task['description'])): ?>
-                            <p class="task-desc-text text-muted mb-1" style="font-size: 12px;"><?= htmlspecialchars($task['description']) ?></p>
-                        <?php endif; ?>
-
-                        <div class="task-meta d-flex flex-wrap align-items-center gap-2 mt-1">
-                            <!-- Hạn hoàn thành & Quá hạn -->
-                            <?php if (!empty($task['due_date'])): 
-                                $dueTs = strtotime($task['due_date']);
-                                $todayTs = strtotime(date('Y-m-d'));
-                                $daysDiff = (int)round(($dueTs - $todayTs) / 86400);
-                            ?>
-                                <span class="badge <?= $isOverdue ? 'bg-danger text-white' : 'bg-light text-muted border' ?> task-due-badge" style="font-size: 11px;">
-                                    <i class="fa-regular fa-clock me-1"></i>Hạn: <?= date('d/m/Y', $dueTs) ?>
-                                    <?php if ($isOverdue): ?>
-                                        (Quá hạn <?= abs($daysDiff) ?> ngày)
-                                    <?php elseif ($daysDiff === 0 && !$isDone): ?>
-                                        (Hôm nay)
-                                    <?php endif; ?>
-                                </span>
-                            <?php endif; ?>
-
-                            <!-- Danh mục -->
-                            <?php if (!empty($task['category_name'])): ?>
-                                <span class="badge" style="background-color: <?= $task['category_color'] ?: '#6658e8' ?>20; color: <?= $task['category_color'] ?: '#6658e8' ?>; font-size: 11px;">
-                                    <i class="fa-solid <?= !empty($task['category_icon']) ? htmlspecialchars($task['category_icon']) : 'fa-folder' ?> me-1"></i>
-                                    <?= htmlspecialchars($task['category_name']) ?>
-                                </span>
-                            <?php endif; ?>
-
-                            <!-- Ngày tạo -->
-                            <small class="text-muted" style="font-size: 10.5px;">
-                                <i class="fa-regular fa-calendar-plus me-1"></i>Tạo: <?= date('d/m/Y', strtotime($task['created_at'])) ?>
-                            </small>
-                        </div>
-                    </div>
                 </label>
 
-                <div class="d-flex align-items-center gap-2 flex-shrink-0 ms-3">
-                    <span class="priority <?= $pClass ?>">
-                        <?php if ($p === 'urgent'): ?><i class="fa-solid fa-bolt me-1"></i><?php endif; ?>
-                        <?= $pText ?>
-                    </span>
-                    <button class="btn btn-sm btn-light btn-task-edit-v2" data-id="<?= $task['id'] ?>" title="Chỉnh sửa công việc">
-                        <i class="fa-solid fa-pen-to-square text-primary"></i>
+                <div class="task-copy">
+                    <div class="today-title-line">
+                        <strong><?= htmlspecialchars($task['title']) ?></strong>
+                        <?php if ($isOverdue): ?>
+                            <span class="today-pill is-overdue task-overdue-badge">Quá hạn</span>
+                        <?php endif; ?>
+                        <?php if ($hasMultiDay): ?>
+                            <span class="today-pill is-multiday"><i class="fa-solid fa-thumbtack"></i>Nhiều ngày</span>
+                        <?php endif; ?>
+                        <?php if (isset($repeatLabels[$repeatType])): ?>
+                            <span class="today-pill is-repeat"><i class="fa-solid fa-repeat"></i><?= $repeatLabels[$repeatType] ?></span>
+                        <?php endif; ?>
+                    </div>
+
+                    <?php if (!empty($task['description'])): ?>
+                        <p class="task-desc-text text-muted mb-1"><?= htmlspecialchars($task['description']) ?></p>
+                    <?php endif; ?>
+
+                    <div class="task-meta d-flex flex-wrap align-items-center gap-2 mt-1">
+                        <?php if ($timeRangeText !== ''): ?>
+                            <span class="today-time-mono">
+                                <i class="fa-regular fa-clock"></i><?= htmlspecialchars($timeRangeText) ?>
+                            </span>
+                        <?php endif; ?>
+
+                        <?php if ($dueDate !== ''):
+                            $dueTs = strtotime($dueDate);
+                            $effectiveDueTs = strtotime($effectiveDueDate);
+                            $todayTs = strtotime($todayYmd);
+                            $daysDiff = (int)round(($effectiveDueTs - $todayTs) / 86400);
+                            $dateText = date('d/m/Y', $dueTs);
+                            if ($hasMultiDay) {
+                                $dateText = date('d/m', $dueTs) . ' → ' . date('d/m/Y', strtotime($endDate));
+                            }
+                        ?>
+                            <span class="badge <?= $isOverdue ? 'bg-danger text-white' : 'bg-light text-muted border' ?> task-due-badge" style="font-size: 11px;">
+                                <i class="fa-regular fa-calendar me-1"></i><?= htmlspecialchars($dateText) ?>
+                                <?php if ($isOverdue && $daysDiff < 0): ?>
+                                    (Quá hạn <?= abs($daysDiff) ?> ngày)
+                                <?php elseif ($daysDiff === 0 && !$isDone): ?>
+                                    (Hôm nay)
+                                <?php endif; ?>
+                            </span>
+                        <?php endif; ?>
+
+                        <?php if (!empty($task['category_name'])):
+                            $cCol = $task['category_color'] ?: '#c2410c';
+                        ?>
+                            <span class="today-meta-cat">
+                                <span class="today-cat-dot" style="background-color: <?= htmlspecialchars($cCol) ?>;"></span>
+                                <?= htmlspecialchars($task['category_name']) ?>
+                            </span>
+                        <?php endif; ?>
+                    </div>
+                </div>
+
+                <div class="task-row-actions">
+                    <span class="priority <?= $pClass ?>"><?= $pText ?></span>
+                    <button type="button" class="btn btn-sm btn-light btn-task-edit-v2" data-id="<?= (int)$task['id'] ?>" title="Chỉnh sửa đầu việc" aria-label="Chỉnh sửa đầu việc">
+                        <i class="fa-solid fa-pen-to-square"></i>
                     </button>
-                    <button class="btn btn-sm btn-light btn-task-delete-v2 text-danger" data-id="<?= $task['id'] ?>" title="Xóa công việc">
+                    <button type="button" class="btn btn-sm btn-light btn-task-delete-v2 text-danger" data-id="<?= (int)$task['id'] ?>" title="Xóa đầu việc" aria-label="Xóa đầu việc">
                         <i class="fa-solid fa-trash-can"></i>
                     </button>
                 </div>
@@ -263,54 +275,92 @@ $csrfToken = $data['csrf_token'] ?? '';
     </div>
 </div>
 
-<!-- MODAL THÊM / CHỈNH SỬA CÔNG VIỆC -->
+<!-- MODAL THÊM / CHỈNH SỬA ĐẦU VIỆC -->
 <div class="modal fade" id="taskModal" tabindex="-1" aria-labelledby="taskModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title fw-bold" id="taskModalLabel">
-                    <i class="fa-solid fa-list-check me-2 text-primary"></i><span>Thêm công việc mới</span>
+                <h5 class="modal-title fw-semibold" id="taskModalLabel">
+                    <i class="fa-regular fa-circle-check me-2 text-primary-accent"></i><span>Thêm đầu việc</span>
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
             </div>
             <form id="taskForm">
-                <div class="modal-body p-4">
+                <div class="modal-body p-3 p-sm-4">
                     <input type="hidden" id="taskModalId" name="id" value="">
                     <input type="hidden" id="taskModalCsrf" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
 
                     <div class="mb-3">
-                        <label for="taskModalTitle" class="form-label fw-bold">Tên công việc <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="taskModalTitle" name="title" placeholder="VD: Soạn thảo báo cáo tiến độ tuần, Thiết kế giao diện Dashboard..." required maxlength="255">
+                        <label for="taskModalTitle" class="form-label">Tên đầu việc <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="taskModalTitle" name="title" placeholder="VD: Gửi báo cáo tuần, Họp rà soát thiết kế" required maxlength="255">
                     </div>
 
-                    <div class="row g-3 mb-3">
-                        <div class="col-md-6">
-                            <label for="taskModalCategory" class="form-label fw-bold">Danh mục</label>
+                    <!-- Khối Ngày thực hiện & Khung giờ gọn cho 1 ngày -->
+                    <div class="schedule-compact-box mb-3">
+                        <div class="row g-2 align-items-end">
+                            <div class="col-12 col-sm-5">
+                                <label for="taskModalDueDate" class="form-label">Ngày thực hiện</label>
+                                <input type="date" class="form-control" id="taskModalDueDate" name="due_date" value="<?= $todayYmd ?>">
+                            </div>
+                            <div class="col-12 col-sm-7">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <label for="taskModalStartTime" class="form-label mb-0">Khung giờ</label>
+                                    <button type="button" class="btn-inline-subtle" id="btnClearTaskTime">Chưa gắn giờ</button>
+                                </div>
+                                <div class="time-range-inline">
+                                    <input type="time" class="form-control" id="taskModalStartTime" name="start_time" aria-label="Giờ bắt đầu">
+                                    <span class="time-range-sep">–</span>
+                                    <input type="time" class="form-control" id="taskModalEndTime" name="end_time" aria-label="Giờ kết thúc">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-2 pt-1">
+                            <button type="button" class="btn-expand-multiday" id="btnToggleTaskEndDate">
+                                <i class="fa-solid fa-plus me-1"></i>Kéo dài nhiều ngày / Hạn chót
+                            </button>
+                        </div>
+
+                        <div id="taskEndDateCollapse" class="multiday-collapse d-none mt-2 pt-2 border-top">
+                            <label for="taskModalEndDate" class="form-label mb-1">Ngày kết thúc / Hạn chót</label>
+                            <input type="date" class="form-control" id="taskModalEndDate" name="end_date">
+                            <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">Việc kéo dài nhiều ngày sẽ hiển thị dạng thanh ghim gọn ở đầu ngày.</small>
+                        </div>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label for="taskModalRepeat" class="form-label">Lặp lại</label>
+                            <select class="form-select" id="taskModalRepeat" name="repeat_type">
+                                <option value="none" selected>Không lặp</option>
+                                <option value="daily">Hằng ngày</option>
+                                <option value="weekly">Hằng tuần</option>
+                                <option value="monthly">Hằng tháng</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label for="taskModalCategory" class="form-label">Danh mục</label>
                             <select class="form-select" id="taskModalCategory" name="category_id">
-                                <option value="">-- Chưa phân loại --</option>
+                                <option value="">Chưa phân loại</option>
                                 <?php foreach ($categories as $cat): ?>
-                                    <option value="<?= $cat['id'] ?>"><?= htmlspecialchars($cat['name']) ?></option>
+                                    <option value="<?= (int)$cat['id'] ?>"><?= htmlspecialchars($cat['name']) ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
-                        <div class="col-md-6">
-                            <label for="taskModalDueDate" class="form-label fw-bold">Hạn hoàn thành (Deadline)</label>
-                            <input type="date" class="form-control" id="taskModalDueDate" name="due_date">
-                        </div>
                     </div>
 
-                    <div class="row g-3 mb-3">
-                        <div class="col-md-6">
-                            <label for="taskModalPriority" class="form-label fw-bold">Mức độ ưu tiên</label>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label for="taskModalPriority" class="form-label">Mức ưu tiên</label>
                             <select class="form-select" id="taskModalPriority" name="priority">
-                                <option value="low">🟢 Thấp</option>
-                                <option value="medium" selected>🟡 Trung bình</option>
-                                <option value="high">🔺 Cao</option>
-                                <option value="urgent">🔥 Khẩn cấp</option>
+                                <option value="low">Thấp</option>
+                                <option value="medium" selected>Trung bình</option>
+                                <option value="high">Cao</option>
+                                <option value="urgent">Khẩn cấp</option>
                             </select>
                         </div>
-                        <div class="col-md-6">
-                            <label for="taskModalStatus" class="form-label fw-bold">Trạng thái công việc</label>
+                        <div class="col-6">
+                            <label for="taskModalStatus" class="form-label">Trạng thái</label>
                             <select class="form-select" id="taskModalStatus" name="status">
                                 <option value="pending" selected>Chưa hoàn thành</option>
                                 <option value="completed">Đã hoàn thành</option>
@@ -319,21 +369,21 @@ $csrfToken = $data['csrf_token'] ?? '';
                     </div>
 
                     <div class="mb-0">
-                        <label for="taskModalDescription" class="form-label fw-bold">Ghi chú / Mô tả chi tiết</label>
-                        <textarea class="form-control" id="taskModalDescription" name="description" rows="3" placeholder="Các bước thực hiện, liên kết tài liệu hoặc lưu ý cần nhớ..."></textarea>
+                        <label for="taskModalDescription" class="form-label">Ghi chú</label>
+                        <textarea class="form-control" id="taskModalDescription" name="description" rows="2" placeholder="Các bước cần lưu ý hoặc liên kết tài liệu"></textarea>
                     </div>
                 </div>
 
                 <div class="modal-footer justify-content-between p-3">
                     <div>
                         <button type="button" class="btn btn-outline-danger btn-sm" id="btnDeleteTaskModal" style="display: none;">
-                            <i class="fa-solid fa-trash-can me-1"></i> Xóa công việc
+                            <i class="fa-solid fa-trash-can me-1"></i>Xóa
                         </button>
                     </div>
                     <div class="d-flex gap-2">
-                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Đóng</button>
+                        <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Đóng</button>
                         <button type="submit" class="btn btn-primary-soft btn-sm" id="btnSaveTaskModal">
-                            <i class="fa-solid fa-check me-1"></i> Lưu công việc
+                            <i class="fa-solid fa-check me-1"></i>Lưu đầu việc
                         </button>
                     </div>
                 </div>

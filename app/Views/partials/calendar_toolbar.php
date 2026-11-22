@@ -44,24 +44,17 @@
             <span class="title-divider-line"></span>
         </div>
 
-        <!-- Bên phải: Bộ chọn Tháng / Tuần / Ngày dạng Segmented Control -->
+        <!-- Bên phải: Bộ chọn Ngày | Tuần | Tháng dạng Segmented Control -->
         <div class="controls-right">
             <div class="view-segmented-control" role="group" aria-label="Chế độ xem lịch">
-                <button type="button" class="view-seg-btn" id="calViewMonth" data-view="dayGridMonth">
-                    <i class="fa-solid fa-calendar"></i>
-                    <span>Tháng</span>
-                </button>
-                <button type="button" class="view-seg-btn" id="calViewWeek" data-view="timeGridWeek">
-                    <i class="fa-solid fa-bars-staggered"></i>
-                    <span>Tuần</span>
-                </button>
                 <button type="button" class="view-seg-btn" id="calViewDay" data-view="timeGridDay">
-                    <i class="fa-regular fa-calendar-check"></i>
                     <span>Ngày</span>
                 </button>
-                <button type="button" class="view-seg-btn" id="calViewList" data-view="listMonth">
-                    <i class="fa-solid fa-list-ul"></i>
-                    <span>Danh sách</span>
+                <button type="button" class="view-seg-btn" id="calViewWeek" data-view="timeGridWeek">
+                    <span>Tuần</span>
+                </button>
+                <button type="button" class="view-seg-btn" id="calViewMonth" data-view="dayGridMonth">
+                    <span>Tháng</span>
                 </button>
             </div>
         </div>

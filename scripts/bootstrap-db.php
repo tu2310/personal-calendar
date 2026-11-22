@@ -2,6 +2,11 @@
 /**
  * Tự động kiểm tra, khởi tạo database và nâng cấp schema an toàn khi chạy `npm run dev`
  */
+if (PHP_SAPI !== 'cli') {
+    http_response_code(403);
+    exit('Forbidden');
+}
+
 require_once __DIR__ . '/../app/Core/Database.php';
 
 $cfg = Database::config();
@@ -17,8 +22,8 @@ try {
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
     ]);
 } catch (PDOException $e) {
-    fwrite(STDERR, "[db] Khong ket noi duoc MySQL tai {$host}:{$port} (user '{$user}'): " . $e->getMessage() . "\n");
-    fwrite(STDERR, "[db] Goi y: Bat MySQL trong Laragon/XAMPP, hoac copy .env.example thanh .env de cau hinh DB_PORT / DB_PASS.\n");
+    fwrite(STDERR, "[db] Khong ket noi duoc toi MySQL.\n");
+    fwrite(STDERR, "[db] Goi y: Bat MySQL trong Laragon/XAMPP, hoac copy .env.example thanh .env de cau hinh ket noi DB.\n");
     exit(1);
 }
 
@@ -110,8 +115,109 @@ function ensureColumn(PDO $pdo, string $table, string $column, string $definitio
 
 ensureColumn($pdo, 'categories', 'icon', "`icon` VARCHAR(50) NOT NULL DEFAULT 'fa-folder' AFTER `color`");
 ensureColumn($pdo, 'events', 'reminder_minutes', "`reminder_minutes` INT NULL DEFAULT NULL AFTER `reminder_at`");
+ensureColumn($pdo, 'events', 'repeat_type', "`repeat_type` ENUM('none','daily','weekly','monthly') NOT NULL DEFAULT 'none' AFTER `reminder_minutes`");
 ensureColumn($pdo, 'events', 'deleted_at', "`deleted_at` DATETIME NULL DEFAULT NULL AFTER `updated_at`");
+ensureColumn($pdo, 'tasks', 'start_time', "`start_time` TIME NULL DEFAULT NULL AFTER `due_date`");
+ensureColumn($pdo, 'tasks', 'end_time', "`end_time` TIME NULL DEFAULT NULL AFTER `start_time`");
+ensureColumn($pdo, 'tasks', 'end_date', "`end_date` DATE NULL DEFAULT NULL AFTER `end_time`");
+ensureColumn($pdo, 'tasks', 'repeat_type', "`repeat_type` ENUM('none','daily','weekly','monthly') NOT NULL DEFAULT 'none' AFTER `end_date`");
 ensureColumn($pdo, 'tasks', 'deleted_at', "`deleted_at` DATETIME NULL DEFAULT NULL AFTER `updated_at`");
+
+function tableExists(PDO $pdo, string $table): bool
+{
+    $stmt = $pdo->prepare(
+        "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :table"
+    );
+    $stmt->execute(['table' => $table]);
+    return (int)$stmt->fetchColumn() > 0;
+}
+
+function indexExists(PDO $pdo, string $table, string $indexName): bool
+{
+    $stmt = $pdo->prepare(
+        "SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :table AND INDEX_NAME = :index_name"
+    );
+    $stmt->execute([
+        'table'      => $table,
+        'index_name' => $indexName,
+    ]);
+    return (int)$stmt->fetchColumn() > 0;
+}
+
+function ensureIndex(PDO $pdo, string $table, string $indexName, array $columns, bool $unique = false): void
+{
+    $allowedTables = ['notifications', 'reminders'];
+    $allowedIndexes = [
+        'idx_notif_user_ref_created',
+        'idx_notif_user_read_created',
+        'uniq_reminders_user_event',
+    ];
+    $allowedColumns = [
+        'user_id',
+        'reference_type',
+        'reference_id',
+        'created_at',
+        'is_read',
+        'event_id',
+    ];
+    if (empty($columns) || !in_array($table, $allowedTables, true) || !in_array($indexName, $allowedIndexes, true)) {
+        throw new InvalidArgumentException('Invalid table, index, or empty column list.');
+    }
+    $quotedCols = [];
+    foreach ($columns as $col) {
+        if (!in_array($col, $allowedColumns, true)) {
+            throw new InvalidArgumentException('Invalid column name for index.');
+        }
+        $quotedCols[] = "`{$col}`";
+    }
+    if (!indexExists($pdo, $table, $indexName)) {
+        $keyword = $unique ? 'ADD UNIQUE KEY' : 'ADD INDEX';
+        $colsSql = implode(', ', $quotedCols);
+        $pdo->exec("ALTER TABLE `{$table}` {$keyword} `{$indexName}` ({$colsSql})");
+    }
+}
+
+if (tableExists($pdo, 'notifications')) {
+    $colStmt = $pdo->prepare(
+        "SELECT DATA_TYPE, CHARACTER_MAXIMUM_LENGTH, IS_NULLABLE, COLUMN_DEFAULT
+         FROM INFORMATION_SCHEMA.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'notifications' AND COLUMN_NAME = 'reference_type'"
+    );
+    $colStmt->execute();
+    $refCol = $colStmt->fetch();
+
+    if (!$refCol) {
+        $pdo->exec("ALTER TABLE `notifications` ADD COLUMN `reference_type` VARCHAR(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL");
+    } else {
+        $dataType = strtolower((string)($refCol['DATA_TYPE'] ?? ''));
+        $maxLen = (int)($refCol['CHARACTER_MAXIMUM_LENGTH'] ?? 0);
+        $isNullable = strtoupper((string)($refCol['IS_NULLABLE'] ?? ''));
+        $defaultVal = $refCol['COLUMN_DEFAULT'];
+        $hasNonNullDefault = $defaultVal !== null && strtoupper((string)$defaultVal) !== 'NULL';
+
+        if ($dataType !== 'varchar' || $maxLen < 50 || $isNullable !== 'YES' || $hasNonNullDefault) {
+            $targetLen = $dataType === 'varchar' ? max(50, $maxLen) : 50;
+            $pdo->exec("ALTER TABLE `notifications` MODIFY COLUMN `reference_type` VARCHAR({$targetLen}) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL");
+        }
+    }
+
+    ensureIndex($pdo, 'notifications', 'idx_notif_user_ref_created', ['user_id', 'reference_type', 'reference_id', 'created_at']);
+    ensureIndex($pdo, 'notifications', 'idx_notif_user_read_created', ['user_id', 'is_read', 'created_at']);
+}
+
+if (tableExists($pdo, 'reminders')) {
+    if (!indexExists($pdo, 'reminders', 'uniq_reminders_user_event')) {
+        $pdo->exec("
+            DELETE r1
+            FROM `reminders` r1
+            INNER JOIN `reminders` r2
+                ON r1.`user_id` = r2.`user_id`
+               AND r1.`event_id` = r2.`event_id`
+               AND r1.`id` < r2.`id`
+        ");
+        ensureIndex($pdo, 'reminders', 'uniq_reminders_user_event', ['user_id', 'event_id'], true);
+    }
+}
 
 $pdo->exec("
     CREATE TABLE IF NOT EXISTS `habits` (

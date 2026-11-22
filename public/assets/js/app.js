@@ -138,6 +138,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initSettingsPage();
     initSharePage();
     initPomodoro();
+    initEventModalController();
     initFullCalendar();
 });
 
@@ -258,7 +259,10 @@ function initNotificationCenter() {
                 if (result.isConfirmed) {
                     fetch('index.php?page=api-notifications-delete-all', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': csrf
+                        },
                         body: JSON.stringify({ csrf_token: csrf })
                     })
                     .then(res => res.json())
@@ -350,13 +354,19 @@ function initNotificationCenter() {
                         // Nếu bấm nút con thì không điều hướng
                         if (e.target.closest('.notif-item-actions')) return;
                         const notifId = el.dataset.id;
-                        const targetUrl = el.dataset.url;
-
-                        // Đánh dấu đã đọc ngầm
-                        markSingleNotifRead(notifId, false);
+                        const targetUrl = (el.dataset.url || '').trim();
 
                         if (targetUrl) {
+                            if (el.classList.contains('is-unread')) {
+                                el.classList.remove('is-unread');
+                                el.querySelector('.btn-mark-read')?.remove();
+                                const cur = parseInt(headerCount?.textContent || '0', 10) || 0;
+                                updateNotifBadges(Math.max(0, cur - 1));
+                            }
+                            markSingleNotifRead(notifId, false);
                             window.location.href = targetUrl;
+                        } else {
+                            markSingleNotifRead(notifId, true);
                         }
                     });
                 });
@@ -384,11 +394,25 @@ function initNotificationCenter() {
             });
     };
 
-    function markSingleNotifRead(id, refresh = true) {
+    function markSingleNotifRead(id, updateDom = true) {
         const csrf = getCsrfToken();
+
+        if (updateDom && listContainer) {
+            const safeId = window.CSS && typeof window.CSS.escape === 'function'
+                ? window.CSS.escape(String(id))
+                : String(id).replace(/["\\]/g, '');
+            const itemEl = listContainer.querySelector(`.notif-item[data-id="${safeId}"]`);
+            if (itemEl && itemEl.classList.contains('is-unread')) {
+                itemEl.classList.remove('is-unread');
+                itemEl.querySelector('.btn-mark-read')?.remove();
+                const cur = parseInt(headerCount?.textContent || '0', 10) || 0;
+                updateNotifBadges(Math.max(0, cur - 1));
+            }
+        }
 
         fetch('index.php?page=api-notification-read', {
             method: 'POST',
+            keepalive: true,
             headers: { 
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': csrf
@@ -399,7 +423,6 @@ function initNotificationCenter() {
         .then(data => {
             if (data.success) {
                 updateNotifBadges(data.unread_count);
-                if (refresh) loadNotifications(currentNotifFilter);
             }
         })
         .catch(() => {});
@@ -429,12 +452,14 @@ function initNotificationCenter() {
     }
 
     function updateNotifBadges(unreadCount) {
-        if (!badge || !headerCount) return;
-        headerCount.textContent = unreadCount;
-        if (unreadCount > 0) {
-            badge.textContent = unreadCount > 99 ? '99+' : unreadCount;
+        const count = Math.max(0, Number(unreadCount) || 0);
+        if (headerCount) headerCount.textContent = count;
+        if (!badge) return;
+        if (count > 0) {
+            badge.textContent = count > 99 ? '99+' : count;
             badge.style.display = 'inline-flex';
         } else {
+            badge.textContent = '0';
             badge.style.display = 'none';
         }
     }
@@ -450,6 +475,23 @@ function initNotificationCenter() {
         })
         .catch(() => {});
 }
+
+window.refreshNotifications = function(unreadCount) {
+    if (typeof unreadCount === 'number' && !Number.isNaN(unreadCount)) {
+        window.updateNotifBadges?.(unreadCount);
+    } else {
+        window.checkReminders?.();
+    }
+
+    const dropdown = document.getElementById('notificationDropdown');
+    const isOpen = dropdown && (
+        dropdown.style.display === 'block' ||
+        window.getComputedStyle(dropdown).display !== 'none'
+    );
+    if (isOpen && typeof window.loadNotifications === 'function') {
+        window.loadNotifications(currentNotifFilter);
+    }
+};
 
 /**
  * ===== HỆ THỐNG NHẮC NHỞ THÔNG MINH (SMART REMINDERS POLLER) =====
@@ -477,17 +519,37 @@ function initSmartReminders() {
                     }
                 }
 
-                const newNotifs = data.new_notifications || [];
+                const newNotifs = Array.isArray(data.new_notifications) ? data.new_notifications : [];
                 if (newNotifs.length > 0) {
-                    playNotificationChime();
+                    if (localStorage.getItem('personalCalendarSound') !== 'false') {
+                        playNotificationChime();
+                    }
 
-                    newNotifs.forEach(n => {
-                        // 1. Toast in-app
-                        window.Toast?.info(n.message, n.title, { duration: 9000 });
+                    // 1. Toast in-app (tối đa 3 Toast + 1 Toast gộp nếu > 3)
+                    if (localStorage.getItem('personalCalendarToastReminder') !== 'false') {
+                        const visibleNotifs = newNotifs.slice(0, 3);
+                        visibleNotifs.forEach(n => {
+                            if (n.severity === 'warning') {
+                                window.Toast?.warning(n.message, n.title, 7500);
+                            } else {
+                                window.Toast?.info(n.message, n.title, 6500);
+                            }
+                        });
 
-                        // 2. Browser Notification API (nếu được bật và đã cấp quyền)
-                        const isBrowserNotifEnabled = localStorage.getItem('personalCalendarBrowserNotif') === 'true';
-                        if (isBrowserNotifEnabled && 'Notification' in window && Notification.permission === 'granted') {
+                        if (newNotifs.length > 3) {
+                            const extraCount = newNotifs.length - 3;
+                            window.Toast?.info(
+                                `Bạn còn ${extraCount} thông báo mới khác trong Trung tâm thông báo.`,
+                                'Thông báo mới',
+                                6500
+                            );
+                        }
+                    }
+
+                    // 2. Browser Notification API (nếu được bật và đã cấp quyền)
+                    const isBrowserNotifEnabled = localStorage.getItem('personalCalendarBrowserNotif') === 'true';
+                    if (isBrowserNotifEnabled && 'Notification' in window && Notification.permission === 'granted') {
+                        newNotifs.slice(0, 3).forEach(n => {
                             try {
                                 const bNotif = new Notification(n.title, {
                                     body: n.message,
@@ -498,52 +560,24 @@ function initSmartReminders() {
                                     if (n.action_url) window.location.href = n.action_url;
                                 };
                             } catch (e) {}
-                        }
-                    });
+                        });
+                    }
 
                     // Nếu dropdown đang mở, tải lại danh sách
                     const dropdown = document.getElementById('notificationDropdown');
-                    if (dropdown && dropdown.style.display === 'block' && typeof window.loadNotifications === 'function') {
+                    const isOpen = dropdown && (
+                        dropdown.style.display === 'block' ||
+                        window.getComputedStyle(dropdown).display !== 'none'
+                    );
+                    if (isOpen && typeof window.loadNotifications === 'function') {
                         window.loadNotifications(currentNotifFilter);
-                    }
-                } else {
-                    // Cảnh báo deadline và lịch trình sắp tới cho phiên làm việc (khi chưa có notif mới trong vòng lặp này)
-                    const sessionDeadlineAlert = sessionStorage.getItem('pc_session_deadline_alert_done');
-                    if (!sessionDeadlineAlert && data.deadline_summary) {
-                        sessionStorage.setItem('pc_session_deadline_alert_done', 'true');
-                        if (data.deadline_summary.overdue_count > 0) {
-                            playNotificationChime();
-                            window.Toast?.warning(
-                                `Bạn có ${data.deadline_summary.overdue_count} công việc đã quá hạn hoàn thành! Hãy ưu tiên xử lý.`,
-                                'Cảnh báo Deadline quá hạn',
-                                { duration: 8500 }
-                            );
-                        } else if (data.deadline_summary.due_today_count > 0) {
-                            playNotificationChime();
-                            window.Toast?.info(
-                                `Hôm nay bạn có ${data.deadline_summary.due_today_count} công việc cần hoàn thành.`,
-                                'Deadline hôm nay',
-                                { duration: 7500 }
-                            );
-                        }
-                    }
-
-                    const sessionEventAlert = sessionStorage.getItem('pc_session_event_alert_done');
-                    if (!sessionEventAlert && data.upcoming_events && data.upcoming_events.length > 0) {
-                        sessionStorage.setItem('pc_session_event_alert_done', 'true');
-                        const nextEv = data.upcoming_events[0];
-                        setTimeout(() => {
-                            window.Toast?.info(
-                                `Hôm nay có lịch "${nextEv.title}" lúc ${nextEv.start_time}.`,
-                                'Lịch trình sắp diễn ra',
-                                { duration: 6500 }
-                            );
-                        }, 1500);
                     }
                 }
             })
             .catch(() => {});
     }
+
+    window.checkReminders = checkReminders;
 
     // Chạy kiểm tra sau 1.5 giây khi load trang
     setTimeout(checkReminders, 1500);
@@ -551,58 +585,193 @@ function initSmartReminders() {
     setInterval(checkReminders, 30000);
 }
 
+function getTodayYmd() {
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
+/**
+ * ===== CẬP NHẬT THANH TIẾN ĐỘ & HIỆU ỨNG GỠ RƠI MÀN HÔM NAY =====
+ */
+function updateTodayProgressUI() {
+    const wrap = document.getElementById('todayProgressBarWrap');
+    const timeline = document.getElementById('todayTimelineList');
+    const doneEl = document.getElementById('todayDoneCount');
+    const totalEl = document.getElementById('todayTotalCount');
+    const fillEl = document.getElementById('todayProgressFill');
+    if (!wrap || !doneEl || !totalEl) return;
+
+    const initialDone = parseInt(wrap.dataset.initialDone || '0', 10) || 0;
+    const baseTotal = parseInt(wrap.dataset.total || '0', 10) || 0;
+
+    const allChecks = timeline ? timeline.querySelectorAll('.task-check') : [];
+    const checkedChecks = timeline ? timeline.querySelectorAll('.task-check:checked') : [];
+
+    const total = Math.max(baseTotal, initialDone + allChecks.length);
+    const done = Math.min(total, initialDone + checkedChecks.length);
+    const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+
+    doneEl.textContent = String(done);
+    totalEl.textContent = String(total);
+    if (fillEl) {
+        fillEl.style.width = `${pct}%`;
+        fillEl.setAttribute('aria-valuenow', String(pct));
+    }
+
+    const overdueChip = document.getElementById('todayOverdueChip');
+    if (overdueChip && timeline) {
+        const remainingOverdue = timeline.querySelectorAll('.today-row[data-is-overdue="1"]:not(.is-done):not(.is-peel-removed)').length;
+        if (remainingOverdue > 0) {
+            overdueChip.style.display = 'inline-flex';
+            overdueChip.innerHTML = `<span class="today-overdue-dot"></span>${remainingOverdue} quá hạn`;
+        } else {
+            overdueChip.style.display = 'none';
+        }
+    }
+}
+
+function syncTodayFirstVisibleRow() {
+    const timeline = document.getElementById('todayTimelineList');
+    if (!timeline) return;
+    const allRows = Array.from(timeline.querySelectorAll('.today-row'));
+    const visibleRows = allRows.filter(r => !r.classList.contains('is-peel-removed') && !r.classList.contains('is-peel-collapsing'));
+    allRows.forEach(r => {
+        r.classList.toggle('is-first-visible', visibleRows.length > 0 && r === visibleRows[0]);
+        r.classList.toggle('is-last-visible', visibleRows.length > 0 && r === visibleRows[visibleRows.length - 1]);
+    });
+}
+
+function clearTodayRowPeelTimers(row) {
+    if (!row) return;
+    if (row._peelCollapseTimer) {
+        clearTimeout(row._peelCollapseTimer);
+        row._peelCollapseTimer = null;
+    }
+    if (row._peelRemoveTimer) {
+        clearTimeout(row._peelRemoveTimer);
+        row._peelRemoveTimer = null;
+    }
+}
+
+function startTodayRowPeelAndDrop(row) {
+    if (!row) return;
+    const timeline = row.closest('#todayTimelineList');
+    if (!timeline) return;
+
+    clearTodayRowPeelTimers(row);
+    row.classList.remove('is-peel-collapsing', 'is-peel-removed');
+
+    const prefersReduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const peelDuration = prefersReduced ? 160 : 860;
+    const collapseDuration = prefersReduced ? 120 : 200;
+
+    row.style.maxHeight = `${row.offsetHeight}px`;
+    row.classList.add('is-peeling-drop');
+
+    row._peelCollapseTimer = setTimeout(() => {
+        row._peelCollapseTimer = null;
+        void row.offsetHeight;
+        row.classList.add('is-peel-collapsing');
+        syncTodayFirstVisibleRow();
+
+        row._peelRemoveTimer = setTimeout(() => {
+            row._peelRemoveTimer = null;
+            row.classList.remove('is-peeling-drop', 'is-peel-collapsing');
+            row.classList.add('is-peel-removed');
+            row.style.removeProperty('max-height');
+            syncTodayFirstVisibleRow();
+
+            const remaining = timeline.querySelectorAll('.today-row:not(.is-peel-removed)');
+            if (remaining.length === 0) {
+                timeline.classList.add('d-none');
+                document.getElementById('todayEmptyState')?.classList.add('d-none');
+                document.getElementById('todayAllDoneState')?.classList.remove('d-none');
+            }
+        }, collapseDuration);
+    }, peelDuration);
+}
+
 /**
  * ===== CẬP NHẬT NHÃN VÀ TRẠNG THÁI QUÁ HẠN CÔNG VIỆC TRÊN UI =====
  */
 function updateTaskOverdueUI(row, isChecked) {
     if (!row) return;
-    const dueDateStr = row.dataset.dueDate;
+
+    const rawOverdue = row.dataset.isOverdue === '1';
+    const overduePills = row.querySelectorAll('.today-pill.is-overdue, .task-overdue-badge');
+    overduePills.forEach(p => {
+        p.style.display = isChecked ? 'none' : '';
+    });
+
+    if (row.classList.contains('today-row') && !row.dataset.dueDate) {
+        row.classList.toggle('is-overdue', !isChecked && rawOverdue);
+        return;
+    }
+
+    const dueDateStr = (row.dataset.dueDate || '').trim();
+    const endDateStr = (row.dataset.endDate || '').trim();
+    const effectiveDueStr = (row.dataset.endDate || row.dataset.dueDate || '').trim();
     const badge = row.querySelector('.task-due-badge');
-    if (!dueDateStr || !badge) return;
+    if (!effectiveDueStr || !badge) {
+        row.classList.toggle('is-overdue', !isChecked && rawOverdue);
+        return;
+    }
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const parts = dueDateStr.split('-');
-    if (parts.length < 3) return;
-    const [year, month, day] = parts.map(Number);
-    const dueDate = new Date(year, month - 1, day);
-    dueDate.setHours(0, 0, 0, 0);
+    const effectiveParts = effectiveDueStr.split('-');
+    if (effectiveParts.length < 3) return;
+    const [effYear, effMonth, effDay] = effectiveParts.map(Number);
+    const effectiveDueDate = new Date(effYear, effMonth - 1, effDay);
+    effectiveDueDate.setHours(0, 0, 0, 0);
 
-    const diffDays = Math.round((dueDate - today) / (1000 * 60 * 60 * 24));
-    const formattedDate = `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year}`;
+    const diffDays = Math.round((effectiveDueDate - today) / (1000 * 60 * 60 * 24));
+    let formattedDate = `${String(effDay).padStart(2, '0')}/${String(effMonth).padStart(2, '0')}/${effYear}`;
+    if (dueDateStr) {
+        const dParts = dueDateStr.split('-');
+        if (dParts.length >= 3) {
+            const [dYear, dMonth, dDay] = dParts.map(Number);
+            formattedDate = `${String(dDay).padStart(2, '0')}/${String(dMonth).padStart(2, '0')}/${dYear}`;
+            if (endDateStr && endDateStr > dueDateStr) {
+                const eParts = endDateStr.split('-');
+                if (eParts.length >= 3) {
+                    formattedDate = `${String(dDay).padStart(2, '0')}/${String(dMonth).padStart(2, '0')} → ${eParts[2]}/${eParts[1]}/${eParts[0]}`;
+                }
+            }
+        }
+    }
 
     if (isChecked) {
-        // TRƯỜNG HỢP: ĐÃ HOÀN THÀNH
-        // Ẩn cảnh báo đỏ, không hiển thị số ngày quá hạn, giữ nguyên ngày hạn ban đầu
         row.classList.remove('is-overdue');
         badge.className = 'badge bg-light text-muted border task-due-badge';
         badge.style.fontSize = '11px';
-        badge.innerHTML = `<i class="fa-regular fa-clock me-1"></i>Hạn: ${formattedDate}`;
+        badge.innerHTML = `<i class="fa-regular fa-calendar me-1"></i>${formattedDate}`;
     } else {
-        // TRƯỜNG HỢP: BỎ TÍCH (CHƯA HOÀN THÀNH)
-        // Nếu ngày hạn đã qua, hiển thị lại nhãn đỏ Quá hạn X ngày
         if (diffDays < 0) {
             row.classList.add('is-overdue');
             badge.className = 'badge bg-danger text-white task-due-badge';
             badge.style.fontSize = '11px';
-            badge.innerHTML = `<i class="fa-regular fa-clock me-1"></i>Hạn: ${formattedDate} (Quá hạn ${Math.abs(diffDays)} ngày)`;
+            badge.innerHTML = `<i class="fa-regular fa-calendar me-1"></i>${formattedDate} (Quá hạn ${Math.abs(diffDays)} ngày)`;
         } else if (diffDays === 0) {
             row.classList.remove('is-overdue');
+            overduePills.forEach(p => { p.style.display = 'none'; });
             badge.className = 'badge bg-warning-subtle text-warning border border-warning-subtle task-due-badge';
             badge.style.fontSize = '11px';
-            badge.innerHTML = `<i class="fa-regular fa-clock me-1"></i>Hạn: ${formattedDate} (Hôm nay)`;
+            badge.innerHTML = `<i class="fa-regular fa-calendar me-1"></i>${formattedDate} (Hôm nay)`;
         } else {
             row.classList.remove('is-overdue');
+            overduePills.forEach(p => { p.style.display = 'none'; });
             badge.className = 'badge bg-light text-muted border task-due-badge';
             badge.style.fontSize = '11px';
-            badge.innerHTML = `<i class="fa-regular fa-clock me-1"></i>Hạn: ${formattedDate}`;
+            badge.innerHTML = `<i class="fa-regular fa-calendar me-1"></i>${formattedDate}`;
         }
     }
 }
 
 /**
- * ===== TOGGLE CHECKBOX CÔNG VIỆC TRÊN TASKS / DASHBOARD =====
+ * ===== TOGGLE CHECKBOX CÔNG VIỆC TRÊN HÔM NAY / TASKS / SẮP TỚI =====
  */
 const activeTaskUpdates = new Set();
 
@@ -611,17 +780,25 @@ function initTaskCheckboxes() {
         if (check.dataset.checkboxBound) return;
         check.dataset.checkboxBound = '1';
 
+        check.closest('.task-check-wrap')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+
         check.addEventListener('change', () => {
             const isChecked = check.checked;
             const row = check.closest('.task-row');
             const taskId = check.dataset.id;
             if (!taskId) return;
 
-            // Chống spam / gửi nhiều request trùng lặp
-            if (activeTaskUpdates.has(taskId)) {
+            const isTask = check.dataset.isTask !== '0';
+            const lockKey = `${isTask ? 't' : 'e'}_${taskId}`;
+
+            // Chống spam / đụng ID giữa task và event
+            if (activeTaskUpdates.has(lockKey)) {
+                check.checked = !isChecked;
                 return;
             }
-            activeTaskUpdates.add(taskId);
+            activeTaskUpdates.add(lockKey);
 
             // 1. Cập nhật giao diện ngay lập tức (Optimistic UI)
             if (row) {
@@ -629,14 +806,17 @@ function initTaskCheckboxes() {
                 row.dataset.status = isChecked ? 'completed' : 'pending';
                 updateTaskOverdueUI(row, isChecked);
 
-                // Nếu công việc không còn thỏa mãn tab hoặc bộ lọc hiện tại thì ẩn ngay
+                if (row.closest('#todayTimelineList') && isChecked) {
+                    startTodayRowPeelAndDrop(row);
+                }
+
                 if (typeof window.checkAndFilterTaskRow === 'function') {
                     window.checkAndFilterTaskRow(row);
                 }
             }
+            updateTodayProgressUI();
 
             const csrf = getCsrfToken();
-            const isTask = check.dataset.isTask !== '0';
 
             // 2. Gửi request cập nhật Database qua AJAX
             if (isTask) {
@@ -656,30 +836,29 @@ function initTaskCheckboxes() {
                 .then(data => {
                     if (data.success) {
                         if (isChecked) {
-                            window.Toast?.success(data.message || 'Đã hoàn thành công việc!');
+                            window.Toast?.success(data.message || 'Đã đánh dấu hoàn thành.');
                         } else {
-                            window.Toast?.info(data.message || 'Đã chuyển về chưa hoàn thành!');
+                            window.Toast?.info(data.message || 'Đã chuyển về chưa hoàn thành.');
                         }
                         if (data.stats) updateTaskStatsUI(data.stats);
+                        window.refreshNotifications?.(data.unread_count);
 
-                        // Đồng bộ lại bộ lọc và empty state nếu có
                         if (typeof window.triggerTasksFilter === 'function') {
                             window.triggerTasksFilter();
                         }
                     } else {
                         revertTaskCheckboxState(row, check, isChecked);
-                        window.Toast?.error(data.message || 'Không thể cập nhật công việc.');
+                        window.Toast?.error(data.message || 'Không thể cập nhật đầu việc.');
                     }
                 })
                 .catch(() => {
                     revertTaskCheckboxState(row, check, isChecked);
-                    window.Toast?.error('Lỗi kết nối khi cập nhật công việc.');
+                    window.Toast?.error('Lỗi kết nối khi cập nhật đầu việc.');
                 })
                 .finally(() => {
-                    activeTaskUpdates.delete(taskId);
+                    activeTaskUpdates.delete(lockKey);
                 });
             } else {
-                // Trường hợp đặc biệt: mục sự kiện (events) fallback
                 fetch('index.php?page=api-event-save', {
                     method: 'POST',
                     headers: { 
@@ -696,7 +875,8 @@ function initTaskCheckboxes() {
                 .then(res => res.json())
                 .then(data => {
                     if (data.success) {
-                        window.Toast?.success(data.message || (isChecked ? 'Đã hoàn thành!' : 'Đã khôi phục trạng thái!'));
+                        window.Toast?.success(data.message || (isChecked ? 'Đã hoàn thành lịch trình.' : 'Đã khôi phục trạng thái.'));
+                        window.refreshNotifications?.(data.unread_count);
                     } else {
                         revertTaskCheckboxState(row, check, isChecked);
                         window.Toast?.error(data.message || 'Không thể cập nhật trạng thái.');
@@ -704,10 +884,10 @@ function initTaskCheckboxes() {
                 })
                 .catch(() => {
                     revertTaskCheckboxState(row, check, isChecked);
-                    window.Toast?.error('Lỗi kết nối khi cập nhật sự kiện.');
+                    window.Toast?.error('Lỗi kết nối khi cập nhật lịch trình.');
                 })
                 .finally(() => {
-                    activeTaskUpdates.delete(taskId);
+                    activeTaskUpdates.delete(lockKey);
                 });
             }
         });
@@ -717,6 +897,17 @@ function initTaskCheckboxes() {
 function revertTaskCheckboxState(row, check, isChecked) {
     if (check) check.checked = !isChecked;
     if (row) {
+        clearTodayRowPeelTimers(row);
+        row.classList.remove('is-peeling-drop', 'is-peel-collapsing', 'is-peel-removed');
+        row.style.removeProperty('max-height');
+
+        const timeline = row.closest('#todayTimelineList');
+        if (timeline) {
+            timeline.classList.remove('d-none');
+            document.getElementById('todayAllDoneState')?.classList.add('d-none');
+            syncTodayFirstVisibleRow();
+        }
+
         row.classList.toggle('is-done', !isChecked);
         row.dataset.status = !isChecked ? 'completed' : 'pending';
         updateTaskOverdueUI(row, !isChecked);
@@ -724,6 +915,7 @@ function revertTaskCheckboxState(row, check, isChecked) {
             window.triggerTasksFilter();
         }
     }
+    updateTodayProgressUI();
 }
 
 /**
@@ -792,16 +984,102 @@ function initTasksPage() {
     const btnDeleteTask = document.getElementById('btnDeleteTaskModal');
     const loadingOverlay = document.getElementById('taskLoadingOverlay');
 
-    let currentStatus = 'all';
+    let currentStatus = listContainer.dataset.initialStatus || 'all';
     let taskModal = null;
     if (taskModalEl && window.bootstrap) {
         taskModal = new bootstrap.Modal(taskModalEl);
     }
 
+    const dueDateInput = document.getElementById('taskModalDueDate');
+    const endDateInput = document.getElementById('taskModalEndDate');
+    const endDateCollapse = document.getElementById('taskEndDateCollapse');
+    const btnToggleTaskEndDate = document.getElementById('btnToggleTaskEndDate');
+    const btnClearTaskTime = document.getElementById('btnClearTaskTime');
+    const startTimeInput = document.getElementById('taskModalStartTime');
+    const endTimeInput = document.getElementById('taskModalEndTime');
+    const repeatSelect = document.getElementById('taskModalRepeat');
+
+    function setTaskEndDateExpanded(expanded, endDateVal = '') {
+        if (!endDateCollapse || !btnToggleTaskEndDate) return;
+        const baseDue = dueDateInput?.value || getTodayYmd();
+        if (expanded) {
+            endDateCollapse.classList.remove('d-none');
+            btnToggleTaskEndDate.innerHTML = '<i class="fa-solid fa-minus me-1"></i>Thu gọn ngày kết thúc';
+            if (endDateInput) {
+                endDateInput.min = baseDue;
+                endDateInput.value = endDateVal || baseDue;
+            }
+        } else {
+            endDateCollapse.classList.add('d-none');
+            btnToggleTaskEndDate.innerHTML = '<i class="fa-solid fa-plus me-1"></i>Kéo dài nhiều ngày / Hạn chót';
+            if (endDateInput) {
+                endDateInput.value = '';
+                endDateInput.removeAttribute('min');
+            }
+        }
+    }
+
+    btnToggleTaskEndDate?.addEventListener('click', () => {
+        const isHidden = endDateCollapse?.classList.contains('d-none');
+        setTaskEndDateExpanded(!!isHidden, endDateInput?.value || dueDateInput?.value || getTodayYmd());
+    });
+
+    dueDateInput?.addEventListener('change', () => {
+        if (endDateInput && !endDateCollapse?.classList.contains('d-none')) {
+            endDateInput.min = dueDateInput.value || '';
+            if (endDateInput.value && dueDateInput.value && endDateInput.value < dueDateInput.value) {
+                endDateInput.value = dueDateInput.value;
+            }
+        }
+    });
+
+    btnClearTaskTime?.addEventListener('click', () => {
+        if (startTimeInput) startTimeInput.value = '';
+        if (endTimeInput) endTimeInput.value = '';
+    });
+
+    // Deep-link cuộn tới & highlight công việc từ thông báo (?task_id=Y)
+    const taskUrlParams = new URLSearchParams(window.location.search);
+    const deepLinkTaskId = taskUrlParams.get('task_id');
+    if (deepLinkTaskId) {
+        const safeTaskId = window.CSS && typeof window.CSS.escape === 'function'
+            ? window.CSS.escape(deepLinkTaskId)
+            : deepLinkTaskId.replace(/["\\]/g, '');
+        const targetRow = listContainer.querySelector(`.task-row[data-id="${safeTaskId}"]`)
+            || document.querySelector(`[data-id="${safeTaskId}"]`);
+        if (targetRow) {
+            setTimeout(() => {
+                const prefersReduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+                targetRow.scrollIntoView({ behavior: prefersReduced ? 'auto' : 'smooth', block: 'center' });
+                const prevTransition = targetRow.style.transition;
+                const prevBoxShadow = targetRow.style.boxShadow;
+                const prevBg = targetRow.style.backgroundColor;
+                targetRow.style.transition = 'box-shadow 0.3s ease, background-color 0.3s ease';
+                targetRow.style.boxShadow = '0 0 0 2px var(--primary, #6366f1)';
+                targetRow.style.backgroundColor = 'rgba(99, 102, 241, 0.08)';
+                setTimeout(() => {
+                    targetRow.style.boxShadow = prevBoxShadow;
+                    targetRow.style.backgroundColor = prevBg;
+                    setTimeout(() => {
+                        targetRow.style.transition = prevTransition;
+                    }, 350);
+                }, 2600);
+            }, 150);
+        }
+        taskUrlParams.delete('task_id');
+        const cleanQuery = taskUrlParams.toString();
+        const cleanUrl = window.location.pathname + (cleanQuery ? `?${cleanQuery}` : '') + window.location.hash;
+        window.history.replaceState({}, document.title, cleanUrl);
+    }
+
     // Helper so sánh theo sortVal
     function compareTasksBySort(a, b, sortVal) {
         const priorityWeights = { urgent: 4, high: 3, medium: 2, low: 1 };
+        const overA = (a.classList.contains('is-overdue') && a.dataset.status !== 'completed') ? 1 : 0;
+        const overB = (b.classList.contains('is-overdue') && b.dataset.status !== 'completed') ? 1 : 0;
+
         if (sortVal === 'due_asc') {
+            if (overA !== overB) return overB - overA;
             const dateA = a.dataset.dueDate || '9999-12-31';
             const dateB = b.dataset.dueDate || '9999-12-31';
             if (dateA !== dateB) return dateA.localeCompare(dateB);
@@ -1014,17 +1292,22 @@ function initTasksPage() {
         });
     });
 
-    // 2. Mở Modal Thêm mới công việc
+    // 2. Mở Modal Thêm mới đầu việc
     btnOpenAdd?.addEventListener('click', () => {
         if (!taskForm) return;
         taskForm.reset();
         document.getElementById('taskModalId').value = '';
-        document.getElementById('taskModalLabel').innerHTML = '<i class="fa-solid fa-list-check me-2 text-primary"></i><span>Thêm công việc mới</span>';
+        if (dueDateInput) dueDateInput.value = getTodayYmd();
+        if (startTimeInput) startTimeInput.value = '';
+        if (endTimeInput) endTimeInput.value = '';
+        if (repeatSelect) repeatSelect.value = 'none';
+        setTaskEndDateExpanded(false);
+        document.getElementById('taskModalLabel').innerHTML = '<i class="fa-regular fa-circle-check me-2 text-primary-accent"></i><span>Thêm đầu việc</span>';
         if (btnDeleteTask) btnDeleteTask.style.display = 'none';
         taskModal?.show();
     });
 
-    // 3. Nút Sửa công việc từ danh sách
+    // 3. Nút Sửa đầu việc từ danh sách
     document.querySelectorAll('.btn-task-edit-v2').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -1037,43 +1320,73 @@ function initTasksPage() {
                     if (data.success && data.data) {
                         const t = data.data;
                         document.getElementById('taskModalId').value = t.id;
-                        document.getElementById('taskModalTitle').value = t.title;
+                        document.getElementById('taskModalTitle').value = t.title || '';
                         document.getElementById('taskModalCategory').value = t.category_id || '';
-                        document.getElementById('taskModalDueDate').value = t.due_date || '';
+                        if (dueDateInput) dueDateInput.value = t.due_date || getTodayYmd();
+                        if (startTimeInput) startTimeInput.value = t.start_time ? String(t.start_time).substring(0, 5) : '';
+                        if (endTimeInput) endTimeInput.value = t.end_time ? String(t.end_time).substring(0, 5) : '';
+                        if (repeatSelect) repeatSelect.value = t.repeat_type || 'none';
+
+                        const hasMulti = !!(t.end_date && t.end_date !== (t.due_date || ''));
+                        setTaskEndDateExpanded(hasMulti, t.end_date || '');
+
                         document.getElementById('taskModalPriority').value = t.priority || 'medium';
                         document.getElementById('taskModalStatus').value = t.status || 'pending';
                         document.getElementById('taskModalDescription').value = t.description || '';
 
-                        document.getElementById('taskModalLabel').innerHTML = '<i class="fa-solid fa-pen-to-square me-2 text-primary"></i><span>Chỉnh sửa công việc</span>';
+                        document.getElementById('taskModalLabel').innerHTML = '<i class="fa-solid fa-pen-to-square me-2 text-primary-accent"></i><span>Chỉnh sửa đầu việc</span>';
                         if (btnDeleteTask) btnDeleteTask.style.display = 'inline-block';
                         taskModal?.show();
                     } else {
-                        window.Toast?.error(data.message || 'Không thể tải chi tiết công việc.');
+                        window.Toast?.error(data.message || 'Không thể tải chi tiết đầu việc.');
                     }
                 })
-                .catch(() => window.Toast?.error('Lỗi kết nối khi tải chi tiết công việc.'));
+                .catch(() => window.Toast?.error('Lỗi kết nối khi tải chi tiết đầu việc.'));
         });
     });
 
-    // 4. Submit form Thêm / Sửa công việc
+    // 4. Submit form Thêm / Sửa đầu việc
     taskForm?.addEventListener('submit', (e) => {
         e.preventDefault();
         const titleVal = document.getElementById('taskModalTitle')?.value.trim();
         if (!titleVal) {
-            window.Toast?.warning('Vui lòng nhập tên công việc!', 'Thiếu thông tin');
+            window.Toast?.warning('Vui lòng nhập tên đầu việc.', 'Thiếu thông tin');
+            document.getElementById('taskModalTitle')?.focus();
+            return;
+        }
+
+        const dueVal = dueDateInput?.value || '';
+        const isMultiOpen = endDateCollapse && !endDateCollapse.classList.contains('d-none');
+        const endVal = isMultiOpen ? (endDateInput?.value || '') : '';
+        const sTime = startTimeInput?.value || '';
+        const eTime = endTimeInput?.value || '';
+
+        if (endVal && dueVal && endVal < dueVal) {
+            window.Toast?.warning('Ngày kết thúc phải bằng hoặc sau ngày thực hiện.', 'Thời gian chưa hợp lệ');
+            endDateInput?.focus();
+            return;
+        }
+
+        if (sTime && eTime && (!endVal || endVal === dueVal) && eTime <= sTime) {
+            window.Toast?.warning('Giờ kết thúc phải sau giờ bắt đầu.', 'Thời gian chưa hợp lệ');
+            endTimeInput?.focus();
             return;
         }
 
         const idVal = document.getElementById('taskModalId')?.value;
         const payload = {
             id: idVal,
-            csrf_token: document.getElementById('taskModalCsrf')?.value || '',
+            csrf_token: document.getElementById('taskModalCsrf')?.value || getCsrfToken(),
             title: titleVal,
             category_id: document.getElementById('taskModalCategory')?.value || null,
-            due_date: document.getElementById('taskModalDueDate')?.value || null,
+            due_date: dueVal || null,
+            end_date: endVal,
+            start_time: sTime,
+            end_time: eTime,
+            repeat_type: repeatSelect?.value || 'none',
             priority: document.getElementById('taskModalPriority')?.value || 'medium',
             status: document.getElementById('taskModalStatus')?.value || 'pending',
-            description: document.getElementById('taskModalDescription')?.value.trim()
+            description: document.getElementById('taskModalDescription')?.value.trim() || ''
         };
 
         const submitBtn = document.getElementById('btnSaveTaskModal');
@@ -1093,16 +1406,17 @@ function initTasksPage() {
 
             if (data.success) {
                 taskModal?.hide();
-                window.Toast?.success(data.message || 'Lưu công việc thành công!');
-                setTimeout(() => window.location.reload(), 700);
+                window.refreshNotifications?.(data.unread_count);
+                window.Toast?.success(data.message || 'Đã lưu đầu việc.');
+                setTimeout(() => window.location.reload(), 600);
             } else {
-                window.Toast?.error(data.message || 'Không thể lưu công việc.');
+                window.Toast?.error(data.message || 'Không thể lưu đầu việc.');
             }
         })
         .catch(() => {
             submitBtn.disabled = false;
             submitBtn.innerHTML = origText;
-            window.Toast?.error('Lỗi kết nối khi lưu công việc.');
+            window.Toast?.error('Lỗi kết nối khi lưu đầu việc.');
         });
     });
 
@@ -1139,6 +1453,7 @@ function initTasksPage() {
                             document.querySelector(`.task-row[data-id="${id}"]`)?.remove();
                         }
                         if (data.stats) updateTaskStatsUI(data.stats);
+                        window.refreshNotifications?.(data.unread_count);
                     } else {
                         window.Toast?.error(data.message || 'Không thể xóa công việc.');
                     }
@@ -1161,6 +1476,10 @@ function initTasksPage() {
             if (id) deleteTaskItem(id, row);
         });
     });
+
+    if (currentStatus !== 'all' || (searchInput && searchInput.value.trim() !== '') || (priorityFilter && priorityFilter.value !== 'all') || (categoryFilter && categoryFilter.value !== '')) {
+        filterAndSortTasks();
+    }
 }
 
 function updateTaskStatsUI(stats) {
@@ -1234,47 +1553,24 @@ function updateTaskStatsUI(stats) {
 }
 
 function fillAndOpenEventModal(event) {
-    const modalEl = document.getElementById('eventModal');
-    if (!modalEl) return;
-    const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
-
-    document.getElementById('eventId').value = event.id;
-    document.getElementById('eventTitle').value = event.title;
-    document.getElementById('eventCategory').value = event.category_id || '';
-    document.getElementById('eventLocation').value = event.location || '';
-    document.getElementById('eventPriority').value = event.priority || 'medium';
-    document.getElementById('eventStatus').value = event.status || 'pending';
-    document.getElementById('eventDescription').value = event.description || '';
-    document.getElementById('eventReminder').value = event.reminder_at ? event.reminder_at.replace(' ', 'T').substring(0, 16) : '';
-
-    // Nhắc nhở thông minh
-    const reminderSwitch = document.getElementById('eventHasReminder');
-    const reminderMinutesSelect = document.getElementById('eventReminderMinutes');
-    const reminderRow = document.getElementById('reminderOptionsRow');
-
-    const hasRem = !!(event.reminder_minutes !== null && event.reminder_minutes !== undefined && event.reminder_minutes !== '');
-    if (reminderSwitch) reminderSwitch.checked = hasRem;
-    if (reminderRow) reminderRow.style.display = hasRem ? 'flex' : 'none';
-    if (reminderMinutesSelect && hasRem) {
-        reminderMinutesSelect.value = String(event.reminder_minutes);
+    if (typeof window.openEditEventModal === 'function') {
+        window.openEditEventModal({
+            id: event.id,
+            title: event.title,
+            extendedProps: {
+                category_id: event.category_id,
+                location: event.location,
+                priority: event.priority,
+                status: event.status,
+                description: event.description,
+                reminder_at: event.reminder_at,
+                reminder_minutes: event.reminder_minutes,
+                repeat_type: event.repeat_type || 'none',
+                raw_start: event.start_time ? String(event.start_time).replace(' ', 'T') : '',
+                raw_end: event.end_time ? String(event.end_time).replace(' ', 'T') : ''
+            }
+        });
     }
-
-    if (event.start_time) {
-        const [sDate, sTime] = event.start_time.split(' ');
-        document.getElementById('eventStartDate').value = sDate;
-        document.getElementById('eventStartTime').value = sTime ? sTime.substring(0, 5) : '08:00';
-    }
-    if (event.end_time) {
-        const [eDate, eTime] = event.end_time.split(' ');
-        document.getElementById('eventEndDate').value = eDate;
-        document.getElementById('eventEndTime').value = eTime ? eTime.substring(0, 5) : '09:00';
-    }
-
-    document.getElementById('eventModalLabel').innerHTML = '<i class="fa-solid fa-pen-to-square me-2 text-primary"></i><span>Chỉnh sửa công việc / Lịch trình</span>';
-    const btnDel = document.getElementById('btnDeleteEvent');
-    if (btnDel) btnDel.style.display = 'inline-block';
-
-    modal.show();
 }
 
 /**
@@ -1500,6 +1796,7 @@ function initSettingsPage() {
             btn.disabled = false;
             if (data.success) {
                 window.Toast?.success(data.message || 'Cập nhật thông tin cá nhân thành công!');
+                window.refreshNotifications?.(data.unread_count);
             } else {
                 window.Toast?.error(data.message || 'Không thể cập nhật thông tin.');
             }
@@ -1529,9 +1826,12 @@ function initSettingsPage() {
         }
 
         const perm = Notification.permission;
-        const isStoredOn = localStorage.getItem('personalCalendarBrowserNotif') === 'true';
+        const isStoredOn = localStorage.getItem('personalCalendarBrowserNotif') !== 'false';
 
         if (perm === 'granted') {
+            if (localStorage.getItem('personalCalendarBrowserNotif') === null) {
+                localStorage.setItem('personalCalendarBrowserNotif', 'true');
+            }
             permBadge.innerHTML = '<i class="fa-solid fa-check me-1"></i> Đã cấp quyền (Sẵn sàng)';
             permBadge.className = 'badge bg-success-subtle text-success';
             if (prefSwitch) prefSwitch.checked = isStoredOn;
@@ -1606,53 +1906,62 @@ function initSettingsPage() {
 
     // Nút thử nghiệm thông báo (hoạt động 100% kể cả khi bị chặn trình duyệt)
     btnTest?.addEventListener('click', () => {
-        // 1. Phát chuông thông báo âm thanh
-        playNotificationChime();
+        const csrf = getCsrfToken();
+        btnTest.disabled = true;
 
-        // 2. Gửi request tạo thông báo in-app trong database & cập nhật chuông
-        fetch('index.php?page=api-notifications-test')
+        // 1. Phát chuông thông báo âm thanh nếu đang bật
+        if (localStorage.getItem('personalCalendarSound') !== 'false') {
+            playNotificationChime();
+        }
+
+        // 2. Gửi request POST kèm CSRF tạo thông báo in-app trong database & cập nhật chuông
+        fetch('index.php?page=api-notifications-test', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrf
+            },
+            body: JSON.stringify({ csrf_token: csrf })
+        })
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
-                    if (typeof window.updateNotifBadges === 'function') {
-                        window.updateNotifBadges(data.unread_count);
-                    }
+                    window.refreshNotifications?.(data.unread_count);
                     window.Toast?.success(
-                        'Thông báo thử nghiệm in-app thành công! Hãy kiểm tra biểu tượng quả chuông trên thanh điều hướng.',
-                        'Thử nghiệm hệ thống'
+                        data.message || 'Thông báo thử nghiệm in-app thành công! Hãy kiểm tra biểu tượng quả chuông trên thanh điều hướng.',
+                        data.title || 'Thử nghiệm hệ thống'
                     );
 
-                    // Tải lại danh sách thông báo nếu dropdown đang mở
-                    const dropdown = document.getElementById('notificationDropdown');
-                    if (dropdown && dropdown.style.display === 'block' && typeof window.loadNotifications === 'function') {
-                        window.loadNotifications('all');
+                    // 3. Nếu trình duyệt đã cấp quyền Notification, phát thêm thông báo native
+                    if ('Notification' in window && Notification.permission === 'granted' && localStorage.getItem('personalCalendarBrowserNotif') !== 'false') {
+                        try {
+                            const bNotif = new Notification(data.title || 'Lịch trình sắp bắt đầu: Họp rà soát tiến độ', {
+                                body: data.message || 'Sự kiện sẽ bắt đầu sau 15 phút tại Phòng họp A. Vui lòng chuẩn bị tài liệu!',
+                                icon: 'https://cdn-icons-png.flaticon.com/512/3652/3652191.png'
+                            });
+                            bNotif.onclick = function() {
+                                window.focus();
+                            };
+                        } catch (e) {}
+                    } else if ('Notification' in window && Notification.permission === 'denied') {
+                        setTimeout(() => {
+                            window.Toast?.info(
+                                'Gợi ý: Thông báo in-app (chuông & toast) hoạt động 100%! Để hiện thêm pop-up Windows, hãy mở lại quyền ở icon ổ khóa trên thanh địa chỉ.',
+                                'Quyền trình duyệt',
+                                7000
+                            );
+                        }, 1200);
                     }
+                } else {
+                    window.Toast?.error(data.message || 'Không thể gửi thông báo thử nghiệm.');
                 }
             })
             .catch(() => {
-                window.Toast?.info('Đã kiểm tra chuông âm thanh in-app thành công.', 'Thử nghiệm');
+                window.Toast?.error('Lỗi kết nối máy chủ khi gửi thông báo thử nghiệm.');
+            })
+            .finally(() => {
+                btnTest.disabled = false;
             });
-
-        // 3. Nếu trình duyệt đã cấp quyền Notification, phát thêm thông báo native
-        if ('Notification' in window && Notification.permission === 'granted') {
-            try {
-                const bNotif = new Notification('Lịch trình sắp bắt đầu: Họp rà soát tiến độ', {
-                    body: 'Sự kiện sẽ bắt đầu sau 15 phút tại Phòng họp A. Vui lòng chuẩn bị tài liệu!',
-                    icon: 'https://cdn-icons-png.flaticon.com/512/3652/3652191.png'
-                });
-                bNotif.onclick = function() {
-                    window.focus();
-                };
-            } catch (e) {}
-        } else if ('Notification' in window && Notification.permission === 'denied') {
-            setTimeout(() => {
-                window.Toast?.info(
-                    'Gợi ý: Thông báo in-app (chuông & toast) hoạt động 100%! Để hiện thêm pop-up Windows, hãy mở lại quyền ở icon ổ khóa trên thanh địa chỉ.',
-                    'Quyền trình duyệt',
-                    { duration: 7000 }
-                );
-            }, 1200);
-        }
     });
 
     // Switch bật tắt
@@ -1810,6 +2119,9 @@ function initPomodoro() {
                     const pct = Math.min(100, (completedCycles / 4) * 100);
                     pomoProgress.style.width = `${pct}%`;
                 }
+                if (localStorage.getItem('personalCalendarSound') !== 'false') {
+                    playNotificationChime();
+                }
                 window.Toast?.success('Tuyệt vời! Bạn đã hoàn thành một phiên tập trung.', 'Pomodoro');
             }
         }, 1000);
@@ -1838,16 +2150,15 @@ function initPomodoro() {
 }
 
 /**
- * ===== TÍCH HỢP FULLCALENDAR & EVENT CRUD =====
+ * ===== BỘ ĐIỀU KHIỂN EVENT MODAL DÙNG CHUNG (HÔM NAY / SẮP TỚI / LỊCH) =====
  */
-function initFullCalendar() {
-    const calendarEl = document.getElementById('calendar');
-    if (!calendarEl || !window.FullCalendar) return;
-
+function initEventModalController() {
     const eventModalEl = document.getElementById('eventModal');
     const detailModalEl = document.getElementById('eventDetailModal');
-    const eventModal = eventModalEl ? new bootstrap.Modal(eventModalEl) : null;
-    const detailModal = detailModalEl ? new bootstrap.Modal(detailModalEl) : null;
+    if (!eventModalEl && !detailModalEl) return;
+
+    const eventModal = eventModalEl && window.bootstrap ? bootstrap.Modal.getOrCreateInstance(eventModalEl) : null;
+    const detailModal = detailModalEl && window.bootstrap ? bootstrap.Modal.getOrCreateInstance(detailModalEl) : null;
 
     const eventForm = document.getElementById('eventForm');
     const btnOpenAddModal = document.getElementById('btnOpenAddModal');
@@ -1855,13 +2166,521 @@ function initFullCalendar() {
     const btnDetailEdit = document.getElementById('btnDetailEdit');
     const btnDetailDelete = document.getElementById('btnDetailDelete');
 
-    const csrfToken = getCsrfToken();
+    const startDateInput = document.getElementById('eventStartDate');
+    const endDateInput = document.getElementById('eventEndDate');
+    const multiDayCollapse = document.getElementById('eventMultiDayCollapse');
+    const btnToggleEndDate = document.getElementById('btnToggleEventEndDate');
+    const startTimeInput = document.getElementById('eventStartTime');
+    const endTimeInput = document.getElementById('eventEndTime');
+    const timeInputsWrap = document.getElementById('eventTimeInputsWrap');
+    const allDayToggle = document.getElementById('eventAllDayToggle');
+    const repeatSelect = document.getElementById('eventRepeatType');
+
     let currentSelectedEvent = null;
+
+    function setEventMultiDayExpanded(expanded, endDateVal = '') {
+        const baseStart = startDateInput?.value || getTodayYmd();
+        if (!multiDayCollapse || !btnToggleEndDate) return;
+        if (expanded) {
+            multiDayCollapse.classList.remove('d-none');
+            btnToggleEndDate.innerHTML = '<i class="fa-solid fa-minus me-1"></i>Thu gọn ngày kết thúc';
+            if (endDateInput) {
+                endDateInput.min = baseStart;
+                endDateInput.value = endDateVal || baseStart;
+            }
+        } else {
+            multiDayCollapse.classList.add('d-none');
+            btnToggleEndDate.innerHTML = '<i class="fa-solid fa-plus me-1"></i>Kéo dài nhiều ngày / Hạn chót';
+            if (endDateInput) {
+                endDateInput.value = baseStart;
+                endDateInput.removeAttribute('min');
+            }
+        }
+    }
+
+    function syncEventAllDayUI() {
+        const isAllDay = !!allDayToggle?.checked;
+        if (startTimeInput) {
+            startTimeInput.disabled = isAllDay;
+            if (!isAllDay && !startTimeInput.value) startTimeInput.value = '08:00';
+        }
+        if (endTimeInput) {
+            endTimeInput.disabled = isAllDay;
+            if (!isAllDay && !endTimeInput.value) endTimeInput.value = '09:00';
+        }
+        timeInputsWrap?.classList.toggle('is-disabled', isAllDay);
+        updateReminderPreview();
+    }
+
+    btnToggleEndDate?.addEventListener('click', () => {
+        const isHidden = multiDayCollapse?.classList.contains('d-none');
+        setEventMultiDayExpanded(!!isHidden, endDateInput?.value || startDateInput?.value || getTodayYmd());
+    });
+
+    allDayToggle?.addEventListener('change', syncEventAllDayUI);
+
+    startDateInput?.addEventListener('change', () => {
+        const sVal = startDateInput.value || getTodayYmd();
+        if (multiDayCollapse?.classList.contains('d-none')) {
+            if (endDateInput) endDateInput.value = sVal;
+        } else if (endDateInput) {
+            endDateInput.min = sVal;
+            if (!endDateInput.value || endDateInput.value < sVal) {
+                endDateInput.value = sVal;
+            }
+        }
+        updateReminderPreview();
+    });
+
+    function updateReminderPreview() {
+        const hasRem = document.getElementById('eventHasReminder')?.checked;
+        const row = document.getElementById('reminderOptionsRow');
+        const previewEl = document.getElementById('reminderPreviewText');
+        if (row) row.style.display = hasRem ? 'flex' : 'none';
+        if (!hasRem || !previewEl) return;
+
+        const sDate = startDateInput?.value;
+        const isAllDay = !!allDayToggle?.checked;
+        const sTime = isAllDay ? '08:00' : (startTimeInput?.value || '08:00');
+        const mins = parseInt(document.getElementById('eventReminderMinutes')?.value || '15', 10);
+
+        if (sDate && sTime) {
+            const startTs = new Date(`${sDate}T${sTime}:00`).getTime();
+            if (!isNaN(startTs)) {
+                const remindTs = new Date(startTs - (mins * 60 * 1000));
+                const pad = n => String(n).padStart(2, '0');
+                const timeStr = `${pad(remindTs.getHours())}:${pad(remindTs.getMinutes())}, ${pad(remindTs.getDate())}/${pad(remindTs.getMonth() + 1)}`;
+                previewEl.innerHTML = `Nhắc lúc: <b>${timeStr}</b>`;
+                return;
+            }
+        }
+        previewEl.textContent = 'Sẽ nhắc trước giờ bắt đầu.';
+    }
+
+    document.getElementById('eventHasReminder')?.addEventListener('change', updateReminderPreview);
+    document.getElementById('eventReminderMinutes')?.addEventListener('change', updateReminderPreview);
+    startDateInput?.addEventListener('input', updateReminderPreview);
+    startTimeInput?.addEventListener('input', updateReminderPreview);
+
+    function openAddModal(startDate = null, endDate = null, allDay = false) {
+        if (!eventForm) return;
+        eventForm.reset();
+        document.getElementById('eventId').value = '';
+        document.getElementById('eventModalLabel').innerHTML = '<i class="fa-regular fa-calendar-plus me-2 text-primary-accent"></i><span>Thêm lịch trình</span>';
+        if (btnDeleteEvent) btnDeleteEvent.style.display = 'none';
+
+        const now = startDate ? new Date(startDate) : new Date();
+        const pad = (n) => String(n).padStart(2, '0');
+        const sYmd = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+
+        if (startDateInput) startDateInput.value = sYmd;
+        if (repeatSelect) repeatSelect.value = 'none';
+
+        let eYmd = sYmd;
+        if (endDate) {
+            const rawEnd = new Date(endDate);
+            const inclusiveEnd = allDay ? new Date(rawEnd.getTime() - 86400000) : rawEnd;
+            const calcEnd = `${inclusiveEnd.getFullYear()}-${pad(inclusiveEnd.getMonth() + 1)}-${pad(inclusiveEnd.getDate())}`;
+            if (calcEnd >= sYmd) eYmd = calcEnd;
+        }
+
+        const isMulti = eYmd > sYmd;
+        setEventMultiDayExpanded(isMulti, eYmd);
+
+        if (allDay && startDate && endDate && isMulti) {
+            if (allDayToggle) allDayToggle.checked = true;
+            if (startTimeInput) startTimeInput.value = '08:00';
+            if (endTimeInput) endTimeInput.value = '09:00';
+        } else if (allDay || !startDate) {
+            if (allDayToggle) allDayToggle.checked = false;
+            if (startTimeInput) startTimeInput.value = '08:00';
+            if (endTimeInput) endTimeInput.value = '09:00';
+        } else {
+            if (allDayToggle) allDayToggle.checked = false;
+            const sh = pad(now.getHours());
+            const sm = pad(now.getMinutes());
+            if (startTimeInput) startTimeInput.value = `${sh}:${sm}`;
+            if (endDate) {
+                const endObj = new Date(endDate);
+                if (endTimeInput) endTimeInput.value = `${pad(endObj.getHours())}:${pad(endObj.getMinutes())}`;
+            } else {
+                const endHour = pad((now.getHours() + 1) % 24);
+                if (endTimeInput) endTimeInput.value = `${endHour}:${sm}`;
+            }
+        }
+        syncEventAllDayUI();
+
+        const reminderSwitch = document.getElementById('eventHasReminder');
+        const reminderRow = document.getElementById('reminderOptionsRow');
+        const reminderMinutesSelect = document.getElementById('eventReminderMinutes');
+        if (reminderSwitch) reminderSwitch.checked = true;
+        if (reminderRow) reminderRow.style.display = 'flex';
+        if (reminderMinutesSelect) reminderMinutesSelect.value = '15';
+        updateReminderPreview();
+
+        eventModal?.show();
+    }
+
+    function openDetailModal(event) {
+        currentSelectedEvent = event;
+        const props = event.extendedProps || {};
+        const titleEl = document.getElementById('detailTitle');
+        if (titleEl) titleEl.textContent = event.title || '';
+
+        const catBadge = document.getElementById('detailCategoryBadge');
+        if (catBadge) {
+            const c = props.category_color || '#c2410c';
+            catBadge.textContent = props.category_name || 'Chưa phân loại';
+            catBadge.style.backgroundColor = c + '20';
+            catBadge.style.color = c;
+            catBadge.style.border = `1px solid ${c}45`;
+        }
+
+        const timeEl = document.getElementById('detailTime');
+        if (timeEl) {
+            timeEl.textContent = `${props.start_formatted || ''} – ${props.end_formatted || ''}`;
+        }
+
+        const repRow = document.getElementById('detailRepeatRow');
+        const repText = document.getElementById('detailRepeatText');
+        const repMap = { daily: 'Hằng ngày', weekly: 'Hằng tuần', monthly: 'Hằng tháng' };
+        if (repRow && repText) {
+            const rType = props.repeat_type || 'none';
+            if (repMap[rType]) {
+                repText.textContent = 'Lặp lại: ' + repMap[rType];
+                repRow.style.display = 'flex';
+            } else {
+                repRow.style.display = 'none';
+            }
+        }
+
+        const locRow = document.getElementById('detailLocationRow');
+        const locSpan = document.getElementById('detailLocation');
+        if (locRow && locSpan) {
+            if (props.location) {
+                locSpan.textContent = props.location;
+                locRow.style.display = 'flex';
+            } else {
+                locRow.style.display = 'none';
+            }
+        }
+
+        const remText = document.getElementById('detailReminderText');
+        if (remText) {
+            const rMin = props.reminder_minutes;
+            const rMap = {
+                0: 'Đúng giờ bắt đầu',
+                5: 'Trước 5 phút',
+                10: 'Trước 10 phút',
+                15: 'Trước 15 phút',
+                30: 'Trước 30 phút',
+                60: 'Trước 1 giờ',
+                1440: 'Trước 1 ngày'
+            };
+            if (rMin !== null && rMin !== undefined && rMin !== '') {
+                remText.textContent = 'Nhắc nhở: ' + (rMap[rMin] || `${rMin} phút trước`);
+            } else if (props.reminder_at) {
+                remText.textContent = 'Nhắc nhở: ' + props.reminder_at;
+            } else {
+                remText.textContent = 'Không bật nhắc nhở';
+            }
+        }
+
+        const pBadge = document.getElementById('detailPriorityBadge');
+        if (pBadge) {
+            const pMap = { high: ['Cao', 'high'], medium: ['Trung bình', 'medium'], low: ['Thấp', 'low'] };
+            const pInfo = pMap[props.priority] || ['Trung bình', 'medium'];
+            pBadge.textContent = 'Ưu tiên: ' + pInfo[0];
+            pBadge.className = 'priority ' + pInfo[1];
+        }
+
+        const sBadge = document.getElementById('detailStatusBadge');
+        if (sBadge) {
+            if (props.status === 'completed') {
+                sBadge.textContent = 'Đã hoàn thành';
+                sBadge.className = 'badge bg-success-subtle text-success border border-success-subtle';
+            } else {
+                sBadge.textContent = 'Chưa hoàn thành';
+                sBadge.className = 'badge bg-warning-subtle text-warning border border-warning-subtle';
+            }
+        }
+
+        const descEl = document.getElementById('detailDescription');
+        if (descEl) {
+            descEl.textContent = props.description ? props.description : 'Không có ghi chú.';
+        }
+
+        if (btnDetailDelete) btnDetailDelete.style.display = 'inline-block';
+        detailModal?.show();
+    }
+
+    function openEditModal(event) {
+        detailModal?.hide();
+        const props = event.extendedProps || {};
+
+        document.getElementById('eventId').value = event.id;
+        document.getElementById('eventTitle').value = event.title || '';
+        document.getElementById('eventCategory').value = props.category_id || '';
+        document.getElementById('eventLocation').value = props.location || '';
+        document.getElementById('eventPriority').value = props.priority || 'medium';
+        document.getElementById('eventStatus').value = props.status || 'pending';
+        document.getElementById('eventDescription').value = props.description || '';
+        document.getElementById('eventReminder').value = props.reminder_at || '';
+        if (repeatSelect) repeatSelect.value = props.repeat_type || 'none';
+
+        let sDate = getTodayYmd();
+        let sTime = '08:00';
+        let eDate = sDate;
+        let eTime = '09:00';
+
+        if (props.raw_start) {
+            const parts = String(props.raw_start).replace(' ', 'T').split('T');
+            if (parts[0]) sDate = parts[0];
+            if (parts[1]) sTime = parts[1].substring(0, 5);
+        }
+        if (props.raw_end) {
+            const parts = String(props.raw_end).replace(' ', 'T').split('T');
+            if (parts[0]) eDate = parts[0];
+            if (parts[1]) eTime = parts[1].substring(0, 5);
+        }
+
+        if (startDateInput) startDateInput.value = sDate;
+
+        const isMultiDay = !!(eDate && sDate && eDate > sDate);
+        setEventMultiDayExpanded(isMultiDay, eDate);
+
+        const isAllDayTime = (sTime === '00:00' && (eTime === '23:59' || eTime === '00:00'));
+        if (allDayToggle) allDayToggle.checked = isAllDayTime;
+        if (!isAllDayTime) {
+            if (startTimeInput) startTimeInput.value = sTime || '08:00';
+            if (endTimeInput) endTimeInput.value = eTime || '09:00';
+        }
+        syncEventAllDayUI();
+
+        const reminderSwitch = document.getElementById('eventHasReminder');
+        const reminderMinutesSelect = document.getElementById('eventReminderMinutes');
+        const reminderRow = document.getElementById('reminderOptionsRow');
+        const hasRem = (props.reminder_minutes !== null && props.reminder_minutes !== undefined && props.reminder_minutes !== '') || !!props.reminder_at;
+        if (reminderSwitch) reminderSwitch.checked = hasRem;
+        if (reminderRow) reminderRow.style.display = hasRem ? 'flex' : 'none';
+        if (reminderMinutesSelect && props.reminder_minutes !== null && props.reminder_minutes !== undefined && props.reminder_minutes !== '') {
+            reminderMinutesSelect.value = String(props.reminder_minutes);
+        }
+        updateReminderPreview();
+
+        document.getElementById('eventModalLabel').innerHTML = '<i class="fa-solid fa-pen-to-square me-2 text-primary-accent"></i><span>Chỉnh sửa lịch trình</span>';
+        if (btnDeleteEvent) btnDeleteEvent.style.display = 'inline-block';
+
+        setTimeout(() => eventModal?.show(), 180);
+    }
+
+    function confirmDeleteEvent(id) {
+        if (!id) return;
+        if (!window.Swal) {
+            deleteEventApi(id);
+            return;
+        }
+
+        Swal.fire({
+            title: 'Xóa lịch trình này?',
+            text: 'Lịch trình sẽ được chuyển khỏi danh sách hiện tại.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#dc2626',
+            cancelButtonColor: '#71717a',
+            confirmButtonText: '<i class="fa-solid fa-trash-can me-1"></i>Xóa',
+            cancelButtonText: 'Hủy'
+        }).then(result => {
+            if (result.isConfirmed) {
+                deleteEventApi(id);
+            }
+        });
+    }
+
+    function deleteEventApi(id) {
+        const csrfToken = getCsrfToken();
+        fetch('index.php?page=api-event-delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: id, csrf_token: csrfToken })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                window.refreshNotifications?.(data.unread_count);
+                window.Toast?.success(data.message || 'Đã xóa lịch trình.');
+                if (window.appCalendar) {
+                    window.appCalendar.refetchEvents();
+                } else {
+                    setTimeout(() => window.location.reload(), 500);
+                }
+            } else {
+                window.Toast?.error(data.message || 'Không thể xóa lịch trình.');
+            }
+        })
+        .catch(() => {
+            window.Toast?.error('Lỗi kết nối khi gửi yêu cầu xóa.');
+        });
+    }
+
+    btnOpenAddModal?.addEventListener('click', () => openAddModal());
+
+    document.querySelectorAll('.js-open-event-modal').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const presetDate = btn.dataset.date;
+            if (presetDate) {
+                openAddModal(new Date(`${presetDate}T08:00:00`), null, true);
+            } else {
+                openAddModal();
+            }
+        });
+    });
+
+    document.querySelectorAll('.js-open-event-detail').forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const evId = link.dataset.eventId;
+            if (evId) window.openEventDetailById?.(evId);
+        });
+    });
+
+    btnDetailEdit?.addEventListener('click', () => {
+        if (currentSelectedEvent) openEditModal(currentSelectedEvent);
+    });
+
+    btnDetailDelete?.addEventListener('click', () => {
+        if (currentSelectedEvent) {
+            detailModal?.hide();
+            confirmDeleteEvent(currentSelectedEvent.id);
+        }
+    });
+
+    btnDeleteEvent?.addEventListener('click', () => {
+        const id = document.getElementById('eventId')?.value;
+        if (id) {
+            eventModal?.hide();
+            confirmDeleteEvent(id);
+        }
+    });
+
+    eventForm?.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const title = document.getElementById('eventTitle')?.value.trim() || '';
+        const sDate = startDateInput?.value || getTodayYmd();
+        const isMultiOpen = multiDayCollapse && !multiDayCollapse.classList.contains('d-none');
+        const eDate = isMultiOpen ? (endDateInput?.value || sDate) : sDate;
+
+        const rawStartTime = startTimeInput?.value || '';
+        const rawEndTime = endTimeInput?.value || '';
+        const isAllDay = !!allDayToggle?.checked || (!rawStartTime && !rawEndTime);
+
+        const sTimeFull = isAllDay ? '00:00:00' : `${rawStartTime || '08:00'}:00`;
+        const eTimeFull = isAllDay ? '23:59:00' : `${rawEndTime || '09:00'}:00`;
+
+        if (!title) {
+            window.Toast?.warning('Vui lòng nhập tiêu đề lịch trình.', 'Thiếu thông tin');
+            document.getElementById('eventTitle')?.focus();
+            return;
+        }
+
+        if (eDate < sDate) {
+            window.Toast?.warning('Ngày kết thúc phải bằng hoặc sau ngày thực hiện.', 'Thời gian chưa hợp lệ');
+            endDateInput?.focus();
+            return;
+        }
+
+        const startDateTime = new Date(`${sDate}T${sTimeFull}`);
+        const endDateTime = new Date(`${eDate}T${eTimeFull}`);
+
+        if (endDateTime <= startDateTime) {
+            window.Toast?.warning('Giờ kết thúc phải sau giờ bắt đầu.', 'Thời gian chưa hợp lệ');
+            endTimeInput?.focus();
+            return;
+        }
+
+        const hasRem = document.getElementById('eventHasReminder')?.checked;
+        const reminderMinutesVal = hasRem ? document.getElementById('eventReminderMinutes')?.value : null;
+        const csrfToken = getCsrfToken();
+        const idVal = document.getElementById('eventId')?.value || '';
+
+        const payload = {
+            id: idVal,
+            csrf_token: csrfToken,
+            title: title,
+            category_id: document.getElementById('eventCategory')?.value || '',
+            location: document.getElementById('eventLocation')?.value.trim() || '',
+            start_time: `${sDate} ${sTimeFull}`,
+            end_time: `${eDate} ${eTimeFull}`,
+            repeat_type: repeatSelect?.value || 'none',
+            priority: document.getElementById('eventPriority')?.value || 'medium',
+            status: document.getElementById('eventStatus')?.value || 'pending',
+            has_reminder: hasRem ? 1 : 0,
+            reminder_minutes: reminderMinutesVal,
+            description: document.getElementById('eventDescription')?.value.trim() || ''
+        };
+
+        const submitBtn = document.getElementById('btnSaveEvent');
+        const origBtnHtml = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Đang lưu...';
+
+        fetch('index.php?page=api-event-save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+        .then(res => res.json())
+        .then(data => {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = origBtnHtml;
+
+            if (data.success) {
+                eventModal?.hide();
+                window.refreshNotifications?.(data.unread_count);
+                window.Toast?.success(data.message || (idVal ? 'Đã cập nhật lịch trình.' : 'Đã thêm lịch trình.'));
+                if (window.appCalendar) {
+                    window.appCalendar.refetchEvents();
+                } else {
+                    setTimeout(() => window.location.reload(), 500);
+                }
+            } else {
+                window.Toast?.error(data.message || 'Không thể lưu lịch trình.');
+            }
+        })
+        .catch(() => {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = origBtnHtml;
+            window.Toast?.error('Lỗi khi lưu lịch hoặc mất kết nối máy chủ.');
+        });
+    });
+
+    window.openAddEventModal = openAddModal;
+    window.openEditEventModal = openEditModal;
+    window.openCalendarDetailModal = openDetailModal;
+    window.confirmDeleteEventById = confirmDeleteEvent;
+}
+
+/**
+ * ===== TÍCH HỢP FULLCALENDAR & EVENT CRUD =====
+ */
+function initFullCalendar() {
+    const calendarEl = document.getElementById('calendar');
+    if (!calendarEl || !window.FullCalendar) return;
+
+    const csrfToken = getCsrfToken();
 
     const formatToSqlDateTime = (date) => {
         const d = new Date(date);
         const pad = (n) => String(n).padStart(2, '0');
         return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    };
+
+    const formatToSqlDateOnly = (date) => {
+        const d = new Date(date);
+        const pad = (n) => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
     };
 
     const hasCustomToolbar = !!document.getElementById('calendarToolbar');
@@ -1872,10 +2691,12 @@ function initFullCalendar() {
         initialView: initialView,
         locale: 'vi',
         timeZone: 'local',
+        allDaySlot: true,
+        allDayText: 'Trong ngày',
         headerToolbar: hasCustomToolbar ? false : {
             left: 'prev,next today',
             center: 'title',
-            right: 'dayGridMonth,timeGridWeek,timeGridDay'
+            right: 'timeGridDay,timeGridWeek,dayGridMonth'
         },
         buttonText: {
             today: 'Hôm nay',
@@ -1925,14 +2746,13 @@ function initFullCalendar() {
         },
 
         select: function(info) {
-            openAddModal(info.start, info.end, info.allDay);
+            window.openAddEventModal?.(info.start, info.end, info.allDay);
             calendar.unselect();
         },
 
         eventClick: function(info) {
             info.jsEvent.preventDefault();
-            currentSelectedEvent = info.event;
-            openDetailModal(info.event);
+            window.openCalendarDetailModal?.(info.event);
         },
 
         eventDrop: function(info) {
@@ -1946,25 +2766,21 @@ function initFullCalendar() {
 
     calendar.render();
     window.appCalendar = calendar;
-    window.openCalendarDetailModal = (event) => {
-        currentSelectedEvent = event;
-        openDetailModal(event);
-    };
 
     // Giám sát và ép nền đặc (opaque) 100% bằng JS cho popover FullCalendar khi mở
     const popoverObserver = new MutationObserver(() => {
         document.querySelectorAll('.fc-popover').forEach(popover => {
             const isDark = document.body.classList.contains('dark');
-            const bg = isDark ? '#1e293b' : '#ffffff';
-            const border = isDark ? '#334155' : '#e2e8f0';
-            const headerBg = isDark ? '#0f172a' : '#f8fafc';
-            const textColor = isDark ? '#f1f5f9' : '#1e293b';
+            const bg = isDark ? '#19191b' : '#ffffff';
+            const border = isDark ? 'rgba(237,237,237,0.12)' : 'rgba(24,24,27,0.1)';
+            const headerBg = isDark ? '#232325' : '#f1f0ec';
+            const textColor = isDark ? '#ededed' : '#18181b';
 
             popover.style.setProperty('background', bg, 'important');
             popover.style.setProperty('background-color', bg, 'important');
             popover.style.setProperty('border', `1px solid ${border}`, 'important');
-            popover.style.setProperty('border-radius', '14px', 'important');
-            popover.style.setProperty('box-shadow', '0 20px 45px rgba(15, 23, 42, 0.22)', 'important');
+            popover.style.setProperty('border-radius', '12px', 'important');
+            popover.style.setProperty('box-shadow', '0 16px 40px rgba(0, 0, 0, 0.18)', 'important');
             popover.style.setProperty('opacity', '1', 'important');
             popover.style.setProperty('z-index', '99999', 'important');
 
@@ -1979,7 +2795,7 @@ function initFullCalendar() {
             const title = popover.querySelector('.fc-popover-title');
             if (title) {
                 title.style.setProperty('color', textColor, 'important');
-                title.style.setProperty('font-weight', '700', 'important');
+                title.style.setProperty('font-weight', '600', 'important');
             }
 
             const body = popover.querySelector('.fc-popover-body');
@@ -2013,7 +2829,6 @@ function initFullCalendar() {
             });
         });
 
-        // Xử lý lọc theo danh mục
         document.querySelectorAll('.cat-chip').forEach(chip => {
             chip.addEventListener('click', () => {
                 const catId = chip.dataset.categoryId;
@@ -2038,285 +2853,20 @@ function initFullCalendar() {
         setTimeout(() => calendar.updateSize(), 200);
     });
 
-    function openAddModal(startDate = null, endDate = null, allDay = false) {
-        eventForm.reset();
-        document.getElementById('eventId').value = '';
-        document.getElementById('eventModalLabel').innerHTML = '<i class="fa-regular fa-calendar-plus me-2 text-primary"></i><span>Thêm lịch trình mới</span>';
-        if (btnDeleteEvent) btnDeleteEvent.style.display = 'none';
-
-        const now = startDate ? new Date(startDate) : new Date();
-        const pad = (n) => String(n).padStart(2, '0');
-
-        const ymd = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-        document.getElementById('eventStartDate').value = ymd;
-        document.getElementById('eventEndDate').value = ymd;
-
-        if (allDay || !startDate) {
-            document.getElementById('eventStartTime').value = '08:00';
-            document.getElementById('eventEndTime').value = '09:00';
-        } else {
-            const sh = pad(now.getHours());
-            const sm = pad(now.getMinutes());
-            document.getElementById('eventStartTime').value = `${sh}:${sm}`;
-
-            if (endDate) {
-                const end = new Date(endDate);
-                const ey = `${end.getFullYear()}-${pad(end.getMonth() + 1)}-${pad(end.getDate())}`;
-                document.getElementById('eventEndDate').value = ey;
-                document.getElementById('eventEndTime').value = `${pad(end.getHours())}:${pad(end.getMinutes())}`;
-            } else {
-                const endHour = pad((now.getHours() + 1) % 24);
-                document.getElementById('eventEndTime').value = `${endHour}:${sm}`;
-            }
-        }
-
-        const hasRem = true;
-        const reminderSwitch = document.getElementById('eventHasReminder');
-        const reminderRow = document.getElementById('reminderOptionsRow');
-        const reminderMinutesSelect = document.getElementById('eventReminderMinutes');
-
-        if (reminderSwitch) reminderSwitch.checked = true;
-        if (reminderRow) reminderRow.style.display = 'flex';
-        if (reminderMinutesSelect) reminderMinutesSelect.value = '15';
-        updateReminderPreview();
-
-        eventModal?.show();
-    }
-
-    function updateReminderPreview() {
-        const hasRem = document.getElementById('eventHasReminder')?.checked;
-        const row = document.getElementById('reminderOptionsRow');
-        const previewEl = document.getElementById('reminderPreviewText');
-        if (row) row.style.display = hasRem ? 'flex' : 'none';
-        if (!hasRem || !previewEl) return;
-
-        const sDate = document.getElementById('eventStartDate')?.value;
-        const sTime = document.getElementById('eventStartTime')?.value;
-        const mins = parseInt(document.getElementById('eventReminderMinutes')?.value || '15', 10);
-
-        if (sDate && sTime) {
-            const startTs = new Date(`${sDate}T${sTime}:00`).getTime();
-            if (!isNaN(startTs)) {
-                const remindTs = new Date(startTs - (mins * 60 * 1000));
-                const pad = n => String(n).padStart(2, '0');
-                const timeStr = `${pad(remindTs.getHours())}:${pad(remindTs.getMinutes())}, ${pad(remindTs.getDate())}/${pad(remindTs.getMonth() + 1)}`;
-                previewEl.innerHTML = `<i class="fa-solid fa-clock-rotate-left me-1 text-info"></i>Sẽ nhắc lúc: <b>${timeStr}</b>`;
-                return;
-            }
-        }
-        previewEl.innerHTML = `<i class="fa-solid fa-clock-rotate-left me-1 text-info"></i>Sẽ nhắc trước khi sự kiện bắt đầu.`;
-    }
-
-    document.getElementById('eventHasReminder')?.addEventListener('change', updateReminderPreview);
-    document.getElementById('eventReminderMinutes')?.addEventListener('change', updateReminderPreview);
-    document.getElementById('eventStartDate')?.addEventListener('input', updateReminderPreview);
-    document.getElementById('eventStartTime')?.addEventListener('input', updateReminderPreview);
-
-    function openDetailModal(event) {
-        const props = event.extendedProps || {};
-        document.getElementById('detailTitle').textContent = event.title;
-
-        const catBadge = document.getElementById('detailCategoryBadge');
-        catBadge.textContent = props.category_name || 'Chưa phân loại';
-        catBadge.style.backgroundColor = (props.category_color || '#6658e8') + '25';
-        catBadge.style.color = props.category_color || '#6658e8';
-        catBadge.style.border = `1px solid ${props.category_color || '#6658e8'}55`;
-
-        document.getElementById('detailTime').textContent = `${props.start_formatted || ''} - ${props.end_formatted || ''}`;
-
-        const locRow = document.getElementById('detailLocationRow');
-        const locSpan = document.getElementById('detailLocation');
-        if (props.location) {
-            locSpan.textContent = props.location;
-            locRow.style.display = 'flex';
-        } else {
-            locRow.style.display = 'none';
-        }
-
-        // Hiển thị thông tin nhắc nhở
-        const remText = document.getElementById('detailReminderText');
-        if (remText) {
-            const rMin = props.reminder_minutes;
-            const rMap = {
-                0: 'Đúng giờ sự kiện bắt đầu',
-                5: 'Trước 5 phút',
-                10: 'Trước 10 phút',
-                15: 'Trước 15 phút',
-                30: 'Trước 30 phút',
-                60: 'Trước 1 giờ',
-                1440: 'Trước 1 ngày'
-            };
-            if (rMin !== null && rMin !== undefined) {
-                remText.textContent = 'Nhắc nhở: ' + (rMap[rMin] || `${rMin} phút trước`);
-            } else if (props.reminder_at) {
-                remText.textContent = 'Nhắc nhở: ' + props.reminder_at;
-            } else {
-                remText.textContent = 'Không bật nhắc nhở';
-            }
-        }
-
-        const pBadge = document.getElementById('detailPriorityBadge');
-        const pMap = { high: ['Cao', 'high'], medium: ['Trung bình', 'medium'], low: ['Thấp', 'low'] };
-        const pInfo = pMap[props.priority] || ['Trung bình', 'medium'];
-        pBadge.textContent = 'Ưu tiên: ' + pInfo[0];
-        pBadge.className = 'priority ' + pInfo[1];
-
-        const sBadge = document.getElementById('detailStatusBadge');
-        if (props.status === 'completed') {
-            sBadge.textContent = 'Đã hoàn thành';
-            sBadge.className = 'badge bg-success-subtle text-success border border-success-subtle';
-        } else {
-            sBadge.textContent = 'Chưa hoàn thành';
-            sBadge.className = 'badge bg-warning-subtle text-warning border border-warning-subtle';
-        }
-
-        const descEl = document.getElementById('detailDescription');
-        descEl.textContent = props.description ? props.description : 'Không có mô tả chi tiết.';
-
-        detailModal?.show();
-    }
-
-    function openEditModal(event) {
-        detailModal?.hide();
-        const props = event.extendedProps || {};
-
-        document.getElementById('eventId').value = event.id;
-        document.getElementById('eventTitle').value = event.title;
-        document.getElementById('eventCategory').value = props.category_id || '';
-        document.getElementById('eventLocation').value = props.location || '';
-        document.getElementById('eventPriority').value = props.priority || 'medium';
-        document.getElementById('eventStatus').value = props.status || 'pending';
-        document.getElementById('eventDescription').value = props.description || '';
-        document.getElementById('eventReminder').value = props.reminder_at || '';
-
-        // Đọc reminder_minutes cho form sửa
-        const reminderSwitch = document.getElementById('eventHasReminder');
-        const reminderMinutesSelect = document.getElementById('eventReminderMinutes');
-        const reminderRow = document.getElementById('reminderOptionsRow');
-
-        const hasRem = (props.reminder_minutes !== null && props.reminder_minutes !== undefined && props.reminder_minutes !== '') || !!props.reminder_at;
-        if (reminderSwitch) reminderSwitch.checked = hasRem;
-        if (reminderRow) reminderRow.style.display = hasRem ? 'flex' : 'none';
-        if (reminderMinutesSelect && props.reminder_minutes !== null && props.reminder_minutes !== undefined) {
-            reminderMinutesSelect.value = String(props.reminder_minutes);
-        }
-        updateReminderPreview();
-
-        if (props.raw_start) {
-            const [sDate, sTime] = props.raw_start.split('T');
-            document.getElementById('eventStartDate').value = sDate;
-            document.getElementById('eventStartTime').value = sTime ? sTime.substring(0, 5) : '08:00';
-        }
-
-        if (props.raw_end) {
-            const [eDate, eTime] = props.raw_end.split('T');
-            document.getElementById('eventEndDate').value = eDate;
-            document.getElementById('eventEndTime').value = eTime ? eTime.substring(0, 5) : '09:00';
-        }
-
-        document.getElementById('eventModalLabel').innerHTML = '<i class="fa-solid fa-pen-to-square me-2 text-primary"></i><span>Chỉnh sửa lịch trình</span>';
-        if (btnDeleteEvent) btnDeleteEvent.style.display = 'inline-block';
-
-        setTimeout(() => eventModal?.show(), 200);
-    }
-
-    btnOpenAddModal?.addEventListener('click', () => openAddModal());
-
-    btnDetailEdit?.addEventListener('click', () => {
-        if (currentSelectedEvent) openEditModal(currentSelectedEvent);
-    });
-
-    btnDetailDelete?.addEventListener('click', () => {
-        if (currentSelectedEvent) {
-            detailModal?.hide();
-            confirmDeleteEvent(currentSelectedEvent.id);
-        }
-    });
-
-    btnDeleteEvent?.addEventListener('click', () => {
-        const id = document.getElementById('eventId').value;
-        if (id) {
-            eventModal?.hide();
-            confirmDeleteEvent(id);
-        }
-    });
-
-    // Submit form Thêm / Sửa Lịch
-    eventForm?.addEventListener('submit', function(e) {
-        e.preventDefault();
-
-        const title = document.getElementById('eventTitle').value.trim();
-        const sDate = document.getElementById('eventStartDate').value;
-        const sTime = document.getElementById('eventStartTime').value;
-        const eDate = document.getElementById('eventEndDate').value;
-        const eTime = document.getElementById('eventEndTime').value;
-
-        if (!title) {
-            window.Toast?.warning('Vui lòng nhập tiêu đề lịch trình!', 'Thiếu thông tin');
-            return;
-        }
-
-        const startDateTime = new Date(`${sDate}T${sTime}:00`);
-        const endDateTime = new Date(`${eDate}T${eTime}:00`);
-
-        if (endDateTime <= startDateTime) {
-            window.Toast?.warning('Thời gian kết thúc phải diễn ra sau thời gian bắt đầu!', 'Thời gian không hợp lệ');
-            return;
-        }
-
-        const hasRem = document.getElementById('eventHasReminder')?.checked;
-        const reminderMinutesVal = hasRem ? document.getElementById('eventReminderMinutes')?.value : null;
-
-        const idVal = document.getElementById('eventId').value;
-        const payload = {
-            id: idVal,
-            csrf_token: csrfToken,
-            title: title,
-            category_id: document.getElementById('eventCategory').value,
-            location: document.getElementById('eventLocation').value.trim(),
-            start_time: `${sDate} ${sTime}:00`,
-            end_time: `${eDate} ${eTime}:00`,
-            priority: document.getElementById('eventPriority').value,
-            status: document.getElementById('eventStatus').value,
-            has_reminder: hasRem ? 1 : 0,
-            reminder_minutes: reminderMinutesVal,
-            description: document.getElementById('eventDescription').value.trim()
-        };
-
-        const submitBtn = document.getElementById('btnSaveEvent');
-        const origBtnHtml = submitBtn.innerHTML;
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Đang lưu...';
-
-        fetch('index.php?page=api-event-save', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        })
-        .then(res => res.json())
-        .then(data => {
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = origBtnHtml;
-
-            if (data.success) {
-                eventModal?.hide();
-                calendar.refetchEvents();
-                window.Toast?.success(data.message || (idVal ? 'Cập nhật lịch thành công!' : 'Thêm lịch thành công!'));
-            } else {
-                window.Toast?.error(data.message || 'Không thể lưu lịch trình.');
-            }
-        })
-        .catch(() => {
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = origBtnHtml;
-            window.Toast?.error('Lỗi khi lưu lịch hoặc mất kết nối máy chủ.');
-        });
-    });
-
-    // Kéo thả & Resize cập nhật thời gian
     function updateEventTime(event, revertCallback) {
-        const start = formatToSqlDateTime(event.start);
-        const end = event.end ? formatToSqlDateTime(event.end) : formatToSqlDateTime(new Date(event.start.getTime() + 3600000));
+        let start;
+        let end;
+
+        if (event.allDay) {
+            const sYmd = formatToSqlDateOnly(event.start);
+            const inclusiveEndObj = event.end ? new Date(event.end.getTime() - 86400000) : event.start;
+            const eYmd = formatToSqlDateOnly(inclusiveEndObj);
+            start = `${sYmd} 00:00:00`;
+            end = `${eYmd} 23:59:00`;
+        } else {
+            start = formatToSqlDateTime(event.start);
+            end = event.end ? formatToSqlDateTime(event.end) : formatToSqlDateTime(new Date(event.start.getTime() + 3600000));
+        }
 
         fetch('index.php?page=api-event-time', {
             method: 'POST',
@@ -2331,8 +2881,9 @@ function initFullCalendar() {
         .then(res => res.json())
         .then(data => {
             if (data.success) {
-                window.Toast?.success(data.message || 'Cập nhật thời gian thành công!');
+                window.Toast?.success(data.message || 'Đã cập nhật thời gian.');
                 calendar.refetchEvents();
+                window.refreshNotifications?.(data.unread_count);
             } else {
                 if (typeof revertCallback === 'function') revertCallback();
                 window.Toast?.error(data.message || 'Không thể cập nhật thời gian.');
@@ -2344,52 +2895,20 @@ function initFullCalendar() {
         });
     }
 
-    // Modal xác nhận và xóa sự kiện
-    function confirmDeleteEvent(id) {
-        if (!window.Swal) {
-            deleteEventApi(id);
-            return;
-        }
-
-        Swal.fire({
-            title: 'Xóa lịch trình này?',
-            text: 'Lịch trình sẽ bị xóa vĩnh viễn và không thể khôi phục.',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#e46e6e',
-            cancelButtonColor: '#8589a5',
-            confirmButtonText: '<i class="fa-solid fa-trash-can me-1"></i> Xóa ngay',
-            cancelButtonText: 'Hủy bỏ'
-        }).then(result => {
-            if (result.isConfirmed) {
-                deleteEventApi(id);
-            }
-        });
-    }
-
-    function deleteEventApi(id) {
-        fetch('index.php?page=api-event-delete', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: id, csrf_token: csrfToken })
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                calendar.refetchEvents();
-                window.Toast?.success(data.message || 'Xóa lịch thành công!');
-            } else {
-                window.Toast?.error(data.message || 'Không thể xóa lịch trình.');
-            }
-        })
-        .catch(() => {
-            window.Toast?.error('Lỗi kết nối khi gửi yêu cầu xóa.');
-        });
-    }
-
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('action') === 'new') {
-        openAddModal();
+        window.openAddEventModal?.();
+    }
+
+    const deepLinkEventId = urlParams.get('event_id');
+    if (deepLinkEventId) {
+        setTimeout(() => {
+            window.openEventDetailById?.(deepLinkEventId);
+        }, 150);
+        urlParams.delete('event_id');
+        const cleanQuery = urlParams.toString();
+        const cleanUrl = window.location.pathname + (cleanQuery ? `?${cleanQuery}` : '') + window.location.hash;
+        window.history.replaceState({}, document.title, cleanUrl);
     }
 }
 
@@ -2697,10 +3216,11 @@ window.openEventDetailById = function(eventId) {
                             description: ev.description,
                             reminder_at: ev.reminder_at,
                             reminder_minutes: ev.reminder_minutes,
+                            repeat_type: ev.repeat_type || 'none',
                             raw_start: ev.start_time ? ev.start_time.replace(' ', 'T') : '',
                             raw_end: ev.end_time ? ev.end_time.replace(' ', 'T') : '',
-                            start_formatted: ev.start_time,
-                            end_formatted: ev.end_time
+                            start_formatted: ev.start_formatted || ev.start_time,
+                            end_formatted: ev.end_formatted || ev.end_time
                         }
                     };
                     window.openCalendarDetailModal(fcObj);
@@ -2838,17 +3358,4 @@ function removeVietnameseTones(str) {
         .replace(/[\u0300-\u036f]/g, '')
         .replace(/đ/g, 'd').replace(/Đ/g, 'D')
         .toLowerCase();
-}
-
-/**
- * Thoát ký tự HTML chống XSS
- */
-function escapeHtml(str) {
-    if (!str) return '';
-    return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
 }

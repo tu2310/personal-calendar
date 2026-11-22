@@ -69,6 +69,7 @@ CREATE TABLE `events` (
   `status` enum('pending','completed') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
   `reminder_at` datetime DEFAULT NULL,
   `reminder_minutes` int DEFAULT NULL,
+  `repeat_type` enum('none','daily','weekly','monthly') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'none',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `deleted_at` datetime DEFAULT NULL,
@@ -119,6 +120,8 @@ CREATE TABLE `notifications` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `fk_notifications_user` (`user_id`),
+  KEY `idx_notif_user_ref_created` (`user_id`,`reference_type`,`reference_id`,`created_at`),
+  KEY `idx_notif_user_read_created` (`user_id`,`is_read`,`created_at`),
   CONSTRAINT `fk_notifications_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=25 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -166,6 +169,7 @@ CREATE TABLE `reminders` (
   `sent_at` datetime DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
+  UNIQUE KEY `uniq_reminders_user_event` (`user_id`,`event_id`),
   KEY `fk_reminders_event` (`event_id`),
   KEY `idx_reminders_due` (`remind_at`,`is_sent`),
   CONSTRAINT `fk_reminders_event` FOREIGN KEY (`event_id`) REFERENCES `events` (`id`) ON DELETE CASCADE
@@ -207,6 +211,10 @@ CREATE TABLE `tasks` (
   `is_completed` tinyint(1) NOT NULL DEFAULT '0',
   `progress` int unsigned NOT NULL DEFAULT '0',
   `due_date` date DEFAULT NULL,
+  `start_time` time DEFAULT NULL,
+  `end_time` time DEFAULT NULL,
+  `end_date` date DEFAULT NULL,
+  `repeat_type` enum('none','daily','weekly','monthly') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'none',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `deleted_at` datetime DEFAULT NULL,

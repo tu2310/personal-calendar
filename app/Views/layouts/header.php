@@ -74,17 +74,17 @@ $initial = mb_strtoupper(mb_substr($currentUserName, 0, 1, 'UTF-8'));
         <nav class="side-nav">
             <?php
             $menus = [
-                ['dashboard', 'fa-house', 'Tổng quan'],
-                ['calendar', 'fa-calendar-days', 'Lịch của tôi'],
-                ['week', 'fa-calendar-week', 'Lịch tuần'],
-                ['month', 'fa-calendar', 'Lịch tháng'],
-                ['tasks', 'fa-list-check', 'Công việc'],
-                ['habits', 'fa-chart-column', 'Thói quen & Thống kê'],
-                ['agenda', 'fa-rectangle-list', 'Danh sách lịch']
+                ['dashboard', 'fa-sun', 'Hôm nay'],
+                ['calendar', 'fa-calendar-days', 'Lịch'],
+                ['tasks', 'fa-circle-check', 'Tasks'],
+                ['upcoming', 'fa-calendar-plus', 'Sắp tới'],
             ];
             foreach ($menus as [$key, $icon, $label]):
+                $isActive = ($key === 'calendar')
+                    ? in_array($page, ['calendar', 'week', 'month'], true)
+                    : ($page === $key);
             ?>
-            <a class="nav-link <?= $page === $key ? 'active' : '' ?>" href="index.php?page=<?= $key ?>">
+            <a class="nav-link <?= $isActive ? 'active' : '' ?>" href="index.php?page=<?= $key ?>">
                 <i class="fa-solid <?= $icon ?>"></i><span><?= $label ?></span>
             </a>
             <?php endforeach; ?>

@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../Core/Database.php';
+require_once __DIR__ . '/Notification.php';
 
 class Event
 {
@@ -15,7 +16,7 @@ class Event
         $stmt = $this->db->prepare("
             SELECT e.*, c.name AS category_name, c.color AS category_color, COALESCE(NULLIF(c.icon, ''), 'fa-folder') AS category_icon
             FROM events e
-            LEFT JOIN categories c ON e.category_id = c.id
+            LEFT JOIN categories c ON e.category_id = c.id AND c.user_id = e.user_id
             WHERE e.user_id = :userId AND e.deleted_at IS NULL
             ORDER BY e.start_time ASC
         ");
@@ -28,7 +29,7 @@ class Event
         $sql = "
             SELECT e.*, c.name AS category_name, c.color AS category_color, COALESCE(NULLIF(c.icon, ''), 'fa-folder') AS category_icon
             FROM events e
-            LEFT JOIN categories c ON e.category_id = c.id
+            LEFT JOIN categories c ON e.category_id = c.id AND c.user_id = e.user_id
             WHERE e.user_id = :userId AND e.deleted_at IS NULL
               AND e.start_time <= :end
               AND e.end_time >= :start
@@ -56,7 +57,7 @@ class Event
         $stmt = $this->db->prepare("
             SELECT e.*, c.name AS category_name, c.color AS category_color, COALESCE(NULLIF(c.icon, ''), 'fa-folder') AS category_icon
             FROM events e
-            LEFT JOIN categories c ON e.category_id = c.id
+            LEFT JOIN categories c ON e.category_id = c.id AND c.user_id = e.user_id
             WHERE e.id = :id AND e.user_id = :userId AND e.deleted_at IS NULL
             LIMIT 1
         ");
@@ -82,11 +83,11 @@ class Event
             INSERT INTO events (
                 user_id, category_id, title, description,
                 start_time, end_time, location, priority, status, 
-                reminder_at, reminder_minutes, created_at, updated_at
+                reminder_at, reminder_minutes, repeat_type, created_at, updated_at
             ) VALUES (
                 :user_id, :category_id, :title, :description,
                 :start_time, :end_time, :location, :priority, :status, 
-                :reminder_at, :reminder_minutes, NOW(), NOW()
+                :reminder_at, :reminder_minutes, :repeat_type, NOW(), NOW()
             )
         ");
 
@@ -101,7 +102,8 @@ class Event
             'priority'         => in_array($data['priority'] ?? '', ['low', 'medium', 'high'], true) ? $data['priority'] : 'medium',
             'status'           => in_array($data['status'] ?? '', ['pending', 'completed'], true) ? $data['status'] : 'pending',
             'reminder_at'      => $reminderAt,
-            'reminder_minutes' => $reminderMinutes
+            'reminder_minutes' => $reminderMinutes,
+            'repeat_type'      => in_array($data['repeat_type'] ?? '', ['none', 'daily', 'weekly', 'monthly'], true) ? $data['repeat_type'] : 'none'
         ]);
 
         return (int)$this->db->lastInsertId();
@@ -132,8 +134,9 @@ class Event
                 status           = :status,
                 reminder_at      = :reminder_at,
                 reminder_minutes = :reminder_minutes,
+                repeat_type      = :repeat_type,
                 updated_at       = NOW()
-            WHERE id = :id AND user_id = :user_id
+            WHERE id = :id AND user_id = :user_id AND deleted_at IS NULL
         ");
 
         $ok = $stmt->execute([
@@ -148,13 +151,12 @@ class Event
             'priority'         => in_array($data['priority'] ?? '', ['low', 'medium', 'high'], true) ? $data['priority'] : 'medium',
             'status'           => in_array($data['status'] ?? '', ['pending', 'completed'], true) ? $data['status'] : 'pending',
             'reminder_at'      => $reminderAt,
-            'reminder_minutes' => $reminderMinutes
+            'reminder_minutes' => $reminderMinutes,
+            'repeat_type'      => in_array($data['repeat_type'] ?? '', ['none', 'daily', 'weekly', 'monthly'], true) ? $data['repeat_type'] : 'none'
         ]);
 
         if ($ok) {
-            // Khi người dùng cập nhật lại thời gian hoặc nhắc nhở, xóa trạng thái reminder cũ để có thể nhắc lại đúng hẹn
-            $delStmt = $this->db->prepare("DELETE FROM reminders WHERE event_id = :eventId AND user_id = :userId");
-            $delStmt->execute(['eventId' => $id, 'userId' => $userId]);
+            self::resetReminder($userId, $id);
         }
 
         return $ok;
@@ -175,7 +177,7 @@ class Event
                 end_time    = :end_time,
                 reminder_at = COALESCE(:reminder_at, reminder_at),
                 updated_at  = NOW()
-            WHERE id = :id AND user_id = :user_id
+            WHERE id = :id AND user_id = :user_id AND deleted_at IS NULL
         ");
 
         $ok = $stmt->execute([
@@ -187,8 +189,7 @@ class Event
         ]);
 
         if ($ok) {
-            $delStmt = $this->db->prepare("DELETE FROM reminders WHERE event_id = :eventId AND user_id = :userId");
-            $delStmt->execute(['eventId' => $id, 'userId' => $userId]);
+            self::resetReminder($userId, $id);
         }
 
         return $ok;
@@ -201,7 +202,7 @@ class Event
             UPDATE events SET
                 status     = :status,
                 updated_at = NOW()
-            WHERE id = :id AND user_id = :user_id
+            WHERE id = :id AND user_id = :user_id AND deleted_at IS NULL
         ");
         return $stmt->execute([
             'id'      => $id,
@@ -216,7 +217,11 @@ class Event
             UPDATE events SET deleted_at = NOW(), updated_at = NOW()
             WHERE id = :id AND user_id = :user_id AND deleted_at IS NULL
         ");
-        return $stmt->execute(['id' => $id, 'user_id' => $userId]);
+        $ok = $stmt->execute(['id' => $id, 'user_id' => $userId]) && $stmt->rowCount() > 0;
+        if ($ok) {
+            self::resetReminder($userId, $id);
+        }
+        return $ok;
     }
 
     public function trashForUser(int $userId): array
@@ -224,7 +229,7 @@ class Event
         $stmt = $this->db->prepare("
             SELECT e.*, c.name AS category_name, c.color AS category_color
             FROM events e
-            LEFT JOIN categories c ON e.category_id = c.id
+            LEFT JOIN categories c ON e.category_id = c.id AND c.user_id = e.user_id
             WHERE e.user_id = :userId AND e.deleted_at IS NOT NULL
             ORDER BY e.deleted_at DESC, e.id DESC
         ");
@@ -238,28 +243,42 @@ class Event
             UPDATE events SET deleted_at = NULL, updated_at = NOW()
             WHERE id = :id AND user_id = :user_id AND deleted_at IS NOT NULL
         ");
-        return $stmt->execute(['id' => $id, 'user_id' => $userId]);
+        return $stmt->execute(['id' => $id, 'user_id' => $userId]) && $stmt->rowCount() > 0;
     }
 
     public function forceDelete(int $id, int $userId): bool
     {
-        $this->db->prepare("DELETE FROM reminders WHERE event_id = :id")->execute(['id' => $id]);
-        $this->db->prepare("DELETE FROM notifications WHERE reference_type = 'event' AND reference_id = :id")->execute(['id' => $id]);
         $stmt = $this->db->prepare("
             DELETE FROM events
             WHERE id = :id AND user_id = :user_id AND deleted_at IS NOT NULL
         ");
-        return $stmt->execute(['id' => $id, 'user_id' => $userId]);
+        $ok = $stmt->execute(['id' => $id, 'user_id' => $userId]) && $stmt->rowCount() > 0;
+        if ($ok) {
+            self::resetReminder($userId, $id);
+            Notification::deleteByReferencePrefix($userId, 'event', $id);
+        }
+        return $ok;
     }
 
     public function emptyTrash(int $userId): bool
     {
-        $ids = $this->db->prepare("SELECT id FROM events WHERE user_id = :user_id AND deleted_at IS NOT NULL");
-        $ids->execute(['user_id' => $userId]);
-        foreach ($ids->fetchAll(PDO::FETCH_COLUMN) as $evId) {
-            $this->db->prepare("DELETE FROM reminders WHERE event_id = :id")->execute(['id' => $evId]);
-            $this->db->prepare("DELETE FROM notifications WHERE reference_type = 'event' AND reference_id = :id")->execute(['id' => $evId]);
+        $idsStmt = $this->db->prepare("SELECT id FROM events WHERE user_id = :user_id AND deleted_at IS NOT NULL");
+        $idsStmt->execute(['user_id' => $userId]);
+        $evIds = array_map('intval', $idsStmt->fetchAll(PDO::FETCH_COLUMN));
+
+        if (!empty($evIds)) {
+            $placeholders = [];
+            $params = ['user_id' => $userId];
+            foreach ($evIds as $idx => $evId) {
+                $ph = 'eid_' . $idx;
+                $placeholders[] = ':' . $ph;
+                $params[$ph] = $evId;
+            }
+            $inClause = implode(', ', $placeholders);
+            $this->db->prepare("DELETE FROM reminders WHERE user_id = :user_id AND event_id IN ({$inClause})")->execute($params);
+            Notification::deleteByReferencePrefixBatch($userId, 'event', $evIds);
         }
+
         $stmt = $this->db->prepare("DELETE FROM events WHERE user_id = :user_id AND deleted_at IS NOT NULL");
         return $stmt->execute(['user_id' => $userId]);
     }
@@ -270,7 +289,7 @@ class Event
         $stmt = $this->db->prepare("
             SELECT e.*, c.name AS category_name, c.color AS category_color, COALESCE(NULLIF(c.icon, ''), 'fa-folder') AS category_icon
             FROM events e
-            LEFT JOIN categories c ON e.category_id = c.id
+            LEFT JOIN categories c ON e.category_id = c.id AND c.user_id = e.user_id
             WHERE e.user_id = :userId AND e.deleted_at IS NULL
               AND DATE(e.start_time) <= :todayEnd
               AND DATE(e.end_time) >= :todayStart
@@ -284,47 +303,88 @@ class Event
         return $stmt->fetchAll();
     }
 
+    public function getTodayUpcomingEvents(int $userId, int $limit = 20): array
+    {
+        $limit = max(1, min(100, $limit));
+        $stmt = $this->db->prepare("
+            SELECT e.*, c.name AS category_name, c.color AS category_color, COALESCE(NULLIF(c.icon, ''), 'fa-folder') AS category_icon
+            FROM events e
+            LEFT JOIN categories c ON e.category_id = c.id AND c.user_id = e.user_id
+            WHERE e.user_id = :userId
+              AND e.deleted_at IS NULL
+              AND e.status NOT IN ('completed', 'cancelled')
+              AND DATE(e.start_time) = CURDATE()
+              AND e.start_time > NOW()
+            ORDER BY e.start_time ASC
+            LIMIT :lim
+        ");
+        $stmt->bindValue(':userId', $userId, PDO::PARAM_INT);
+        $stmt->bindValue(':lim', $limit, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll();
+    }
+
+    public function getUpcomingByDays(int $userId, int $days = 30): array
+    {
+        $days = max(1, min(365, $days));
+        $stmt = $this->db->prepare("
+            SELECT e.*, c.name AS category_name, c.color AS category_color, COALESCE(NULLIF(c.icon, ''), 'fa-folder') AS category_icon
+            FROM events e
+            LEFT JOIN categories c ON e.category_id = c.id AND c.user_id = e.user_id
+            WHERE e.user_id = :userId
+              AND e.deleted_at IS NULL
+              AND DATE(e.start_time) > CURDATE()
+              AND DATE(e.start_time) <= DATE_ADD(CURDATE(), INTERVAL :days DAY)
+            ORDER BY e.start_time ASC
+        ");
+        $stmt->bindValue(':userId', $userId, PDO::PARAM_INT);
+        $stmt->bindValue(':days', $days, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll();
+    }
+
     public function getUpcomingEvents(int $userId, int $limit = 5): array
     {
+        $limit = max(1, min(100, $limit));
         $now = date('Y-m-d H:i:s');
         $stmt = $this->db->prepare("
             SELECT e.*, c.name AS category_name, c.color AS category_color, COALESCE(NULLIF(c.icon, ''), 'fa-folder') AS category_icon
             FROM events e
-            LEFT JOIN categories c ON e.category_id = c.id
+            LEFT JOIN categories c ON e.category_id = c.id AND c.user_id = e.user_id
             WHERE e.user_id = :userId AND e.deleted_at IS NULL
               AND e.start_time >= :now
             ORDER BY e.start_time ASC
-            LIMIT {$limit}
+            LIMIT :lim
         ");
-        $stmt->execute([
-            'userId' => $userId,
-            'now'    => $now
-        ]);
+        $stmt->bindValue(':userId', $userId, PDO::PARAM_INT);
+        $stmt->bindValue(':now', $now, PDO::PARAM_STR);
+        $stmt->bindValue(':lim', $limit, PDO::PARAM_INT);
+        $stmt->execute();
         return $stmt->fetchAll();
     }
 
     /**
      * Lấy các sự kiện cần kích hoạt nhắc nhở cho người dùng
-     * Điều kiện:
-     * 1. Thuộc về user_id
-     * 2. reminder_at IS NOT NULL AND reminder_at <= NOW()
-     * 3. Sự kiện chưa qua (start_time >= DATE_SUB(NOW(), INTERVAL 1 HOUR))
-     * 4. Chưa được đánh dấu đã gửi trong bảng reminders
      */
-    public function getPendingReminders(int $userId): array
+    public static function getPendingReminders(int $userId): array
     {
-        $stmt = $this->db->prepare("
+        if ($userId <= 0) {
+            return [];
+        }
+        $db = Database::getConnection();
+        $stmt = $db->prepare("
             SELECT e.*, c.name AS category_name, c.color AS category_color
             FROM events e
-            LEFT JOIN categories c ON e.category_id = c.id
+            LEFT JOIN categories c ON e.category_id = c.id AND c.user_id = e.user_id
             LEFT JOIN reminders r ON r.event_id = e.id AND r.user_id = e.user_id AND r.is_sent = 1
             WHERE e.user_id = :userId
+              AND e.deleted_at IS NULL
+              AND e.status NOT IN ('completed', 'cancelled')
               AND (
                 (e.reminder_at IS NOT NULL AND e.reminder_at <= NOW())
                 OR (e.reminder_minutes IS NOT NULL AND DATE_SUB(e.start_time, INTERVAL e.reminder_minutes MINUTE) <= NOW())
               )
               AND e.start_time >= DATE_SUB(NOW(), INTERVAL 2 HOUR)
-              AND e.status != 'completed'
               AND r.id IS NULL
             ORDER BY e.start_time ASC
             LIMIT 10
@@ -334,19 +394,53 @@ class Event
     }
 
     /**
-     * Đánh dấu đã nhắc nhở sự kiện để không gửi trùng lặp
+     * Xóa trạng thái đã nhắc nhở khi sự kiện được cập nhật giờ hoặc cấu hình nhắc hẹn
      */
-    public function markReminderSent(int $eventId, int $userId): void
+    public static function resetReminder(int $userId, int $eventId): void
     {
-        $stmt = $this->db->prepare("
-            INSERT INTO reminders (user_id, event_id, remind_at, is_sent, sent_at, created_at)
-            VALUES (:user_id, :event_id, NOW(), 1, NOW(), NOW())
-            ON DUPLICATE KEY UPDATE is_sent = 1, sent_at = NOW()
-        ");
+        if ($userId <= 0 || $eventId <= 0) {
+            return;
+        }
+        $db = Database::getConnection();
+        $stmt = $db->prepare("DELETE FROM reminders WHERE user_id = :uid AND event_id = :eid");
         $stmt->execute([
+            'uid' => $userId,
+            'eid' => $eventId
+        ]);
+    }
+
+    /**
+     * Đánh dấu đã nhắc nhở sự kiện để không gửi trùng lặp (atomic chống 2 tab poll song song)
+     */
+    public static function markReminderSent(int $eventId, int $userId): bool
+    {
+        if ($eventId <= 0 || $userId <= 0) {
+            return false;
+        }
+        $db = Database::getConnection();
+
+        $upd = $db->prepare("
+            UPDATE reminders
+            SET is_sent = 1, sent_at = NOW()
+            WHERE user_id = :uid AND event_id = :eid AND is_sent = 0
+        ");
+        $upd->execute([
+            'uid' => $userId,
+            'eid' => $eventId
+        ]);
+        if ($upd->rowCount() > 0) {
+            return true;
+        }
+
+        $ins = $db->prepare("
+            INSERT IGNORE INTO reminders (user_id, event_id, remind_at, is_sent, sent_at, created_at)
+            VALUES (:user_id, :event_id, NOW(), 1, NOW(), NOW())
+        ");
+        $ins->execute([
             'user_id'  => $userId,
             'event_id' => $eventId
         ]);
+        return $ins->rowCount() > 0;
     }
 
     public function getStats(int $userId): array
@@ -455,7 +549,7 @@ class Event
         $stmt = $this->db->prepare("
             SELECT e.*, c.name AS category_name, c.color AS category_color, COALESCE(NULLIF(c.icon, ''), 'fa-folder') AS category_icon
             FROM events e
-            LEFT JOIN categories c ON e.category_id = c.id
+            LEFT JOIN categories c ON e.category_id = c.id AND c.user_id = e.user_id
             WHERE e.user_id = :userId AND e.deleted_at IS NULL
             ORDER BY e.start_time DESC
         ");

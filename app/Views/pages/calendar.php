@@ -1,12 +1,12 @@
 <section class="welcome-row">
     <div>
-        <div class="eyebrow">Lịch biểu</div>
-        <h1>Lịch của tôi</h1>
-        <p class="page-subtitle">Xem và sắp xếp lịch trình cá nhân theo tháng, tuần hoặc ngày</p>
+        <div class="eyebrow"><span class="eyebrow-dot"></span>Lịch biểu</div>
+        <h1>Lịch</h1>
+        <p class="page-subtitle">Xem và sắp xếp lịch trình cá nhân theo ngày, tuần hoặc tháng</p>
     </div>
     <div class="d-flex gap-2">
-        <button class="btn btn-primary-soft" id="btnOpenAddModal">
-            <i class="fa-solid fa-plus me-2"></i>Thêm lịch mới
+        <button type="button" class="btn btn-primary-soft" id="btnOpenAddModal">
+            <i class="fa-solid fa-plus"></i><span>Thêm lịch mới</span>
         </button>
     </div>
 </section>

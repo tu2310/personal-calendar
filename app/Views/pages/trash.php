@@ -64,7 +64,10 @@ document.addEventListener('DOMContentLoaded', () => {
     async function postTrash(page, payload) {
         const res = await fetch(`index.php?page=${page}`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrf
+            },
             body: JSON.stringify({ ...payload, csrf_token: csrf })
         });
         return res.json();
@@ -77,6 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (data.success) {
                 window.Toast?.success(data.message || 'Đã khôi phục');
                 btn.closest('.task-row')?.remove();
+                window.refreshNotifications?.(data.unread_count);
                 if (!document.querySelector('#trashList .task-row')) location.reload();
             } else {
                 btn.disabled = false;
@@ -111,6 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (data.success) {
                 window.Toast?.success(data.message || 'Đã xóa vĩnh viễn');
                 btn.closest('.task-row')?.remove();
+                window.refreshNotifications?.(data.unread_count);
                 if (!document.querySelector('#trashList .task-row')) location.reload();
             } else {
                 btn.disabled = false;
@@ -125,6 +130,7 @@ document.addEventListener('DOMContentLoaded', () => {
         e.currentTarget.disabled = true;
         const data = await postTrash('api-trash-empty', {});
         if (data.success) {
+            window.refreshNotifications?.(data.unread_count);
             window.Toast?.success(data.message || 'Đã dọn sạch thùng rác');
             location.reload();
         } else {

@@ -1,138 +1,177 @@
-<section class="welcome-row">
-    <div>
-        <div class="eyebrow"><span class="eyebrow-dot"></span><?= (new IntlDateFormatter('vi_VN', IntlDateFormatter::FULL, IntlDateFormatter::NONE, null, null, 'EEEE, dd/MM/yyyy'))->format(new DateTime()) ?></div>
-        <h1>Tổng quan hôm nay</h1>
-        <p class="page-subtitle">Lịch trình, đầu việc ưu tiên và nhịp làm việc trong ngày</p>
-    </div>
-    <a class="btn btn-primary-soft" href="index.php?page=calendar&action=new"><i class="fa-solid fa-plus"></i><span>Thêm lịch mới</span></a>
-</section>
+<?php
+$todayItems = $data['todayItems'] ?? [];
+$progress = $data['todayProgress'] ?? [];
+$totalCount = isset($progress['total']) ? (int)$progress['total'] : count($todayItems);
+$doneCount = isset($progress['done']) ? (int)$progress['done'] : 0;
+$overdueCount = isset($progress['overdue']) ? (int)$progress['overdue'] : 0;
+$percent = isset($progress['percent'])
+    ? (int)$progress['percent']
+    : ($totalCount > 0 ? (int)round(($doneCount / $totalCount) * 100) : 0);
 
-<?php if (!empty($data['taskStats']['overdue']) && $data['taskStats']['overdue'] > 0): ?>
-<div class="alert alert-warning d-flex align-items-center justify-content-between p-3 mb-4 rounded-3 border-warning-subtle" style="background: var(--warning-soft);">
-    <div class="d-flex align-items-center gap-3">
-        <div class="rounded-2 d-flex align-items-center justify-content-center" style="width: 2.25rem; height: 2.25rem; background: var(--warning); color: #fff;">
-            <i class="fa-solid fa-clock-rotate-left"></i>
-        </div>
-        <div>
-            <strong class="d-block" style="color: var(--text);">Có <?= $data['taskStats']['overdue'] ?> công việc đã quá hạn</strong>
-            <small class="text-muted">Ưu tiên xử lý các nhiệm vụ tồn đọng trước khi sang lịch mới</small>
-        </div>
-    </div>
-    <a href="index.php?page=tasks&status=overdue" class="btn btn-sm btn-light px-3">
-        Xem việc quá hạn
-    </a>
-</div>
-<?php endif; ?>
+$csrfToken = $data['csrf_token'] ?? Auth::csrfToken();
+$tz = new DateTimeZone('Asia/Ho_Chi_Minh');
+$todayDateLabel = (new IntlDateFormatter(
+    'vi_VN',
+    IntlDateFormatter::FULL,
+    IntlDateFormatter::NONE,
+    'Asia/Ho_Chi_Minh',
+    IntlDateFormatter::GREGORIAN,
+    'EEEE, dd/MM/yyyy'
+))->format(new DateTime('now', $tz));
 
-<section class="stats-grid">
-    <?php 
-    $dashCardKeys = ['today', 'upcoming', 'pending', 'completed'];
-    foreach ($data['stats'] as $idx => $stat): 
-        $k = $dashCardKeys[$idx] ?? ('stat_' . $idx);
-    ?>
-    <article class="stat-card stat-card-<?= $k ?>">
-        <div class="stat-top">
-            <span class="stat-label-top"><?= $stat['label'] ?></span>
-            <span class="stat-icon <?= $stat['tone'] ?>"><i class="fa-solid <?= $stat['icon'] ?>"></i></span>
+$repeatLabels = [
+    'daily'   => 'Hằng ngày',
+    'weekly'  => 'Hằng tuần',
+    'monthly' => 'Hằng tháng',
+];
+$priorityLabels = [
+    'urgent' => 'Khẩn cấp',
+    'high'   => 'Cao',
+    'medium' => 'Trung bình',
+    'low'    => 'Thấp',
+];
+?>
+<section class="today-screen">
+    <header class="today-header">
+        <div class="today-header-top">
+            <div>
+                <div class="eyebrow"><span class="eyebrow-dot"></span><?= htmlspecialchars($todayDateLabel) ?></div>
+                <h1>Hôm nay</h1>
+            </div>
+            <button type="button" class="btn btn-primary-soft today-add-btn" id="btnOpenAddModal">
+                <i class="fa-solid fa-plus"></i>
+                <span>Thêm việc</span>
+            </button>
         </div>
-        <div class="stat-value" id="dashCard_<?= $k ?>_val"><?= $stat['value'] ?></div>
-        <div class="stat-change <?= $stat['tone'] ?>" id="dashCard_<?= $k ?>_change"><?= $stat['change'] ?></div>
-    </article>
-    <?php endforeach; ?>
-</section>
 
-<section class="dashboard-grid">
-    <article class="panel agenda-panel">
-        <div class="panel-heading">
-            <div><h2>Lịch trình trong ngày</h2><p>Các hoạt động được lên kế hoạch hôm nay</p></div>
-            <a href="index.php?page=calendar" class="text-link">Xem tất cả <i class="fa-solid fa-arrow-right"></i></a>
+        <div class="today-progress-strip" id="todayProgressBarWrap" data-initial-done="<?= (int)$doneCount ?>" data-total="<?= (int)$totalCount ?>">
+            <div class="today-progress-meta">
+                <span class="today-progress-copy">
+                    Hoàn thành <strong id="todayDoneCount"><?= $doneCount ?></strong>/<span id="todayTotalCount"><?= $totalCount ?></span> việc hôm nay
+                </span>
+                <?php if ($overdueCount > 0): ?>
+                    <a href="index.php?page=tasks&status=overdue" class="today-overdue-chip" id="todayOverdueChip">
+                        <span class="today-overdue-dot"></span><?= $overdueCount ?> quá hạn
+                    </a>
+                <?php endif; ?>
+            </div>
+            <div class="today-progress-track" role="progressbar" aria-label="Tiến độ hoàn thành hôm nay" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?= $percent ?>">
+                <div class="today-progress-fill" id="todayProgressFill" style="width: <?= max(0, min(100, $percent)) ?>%;"></div>
+            </div>
         </div>
-        <div class="agenda-list">
-            <?php if (empty($data['events'])): ?>
-                <div class="text-center py-4 text-muted">
-                    <i class="fa-regular fa-calendar-check fs-3 mb-2 d-block opacity-50"></i>
-                    <p class="mb-0">Hôm nay bạn chưa có lịch trình nào.</p>
-                    <a href="index.php?page=calendar" class="btn btn-sm btn-primary-soft mt-3">Lên lịch ngay</a>
-                </div>
-            <?php else: ?>
-                <?php foreach ($data['events'] as $event): ?>
-                <div class="agenda-item">
-                    <div class="agenda-time"><?= $event['time'] ?></div>
-                    <div class="agenda-marker <?= $event['color'] ?>"></div>
-                    <div class="agenda-detail">
-                        <strong><?= htmlspecialchars($event['title']) ?></strong>
-                        <small><i class="fa-solid fa-location-dot"></i> <?= htmlspecialchars($event['place']) ?></small>
+    </header>
+
+    <div class="panel today-panel p-0">
+        <input type="hidden" id="dashboardCsrf" name="csrf_token" value="<?= htmlspecialchars($csrfToken) ?>">
+
+        <?php if ($totalCount === 0 && empty($todayItems)): ?>
+            <div class="today-empty-state" id="todayEmptyState">
+                <div class="empty-icon"><i class="fa-regular fa-sun"></i></div>
+                <h2>Chưa có việc cần làm hôm nay</h2>
+                <p>Thêm các đầu việc hoặc lịch hẹn quan trọng để theo dõi theo từng khung giờ trong ngày.</p>
+                <button type="button" class="btn btn-primary-soft js-open-event-modal">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>Thêm việc hôm nay</span>
+                </button>
+            </div>
+        <?php endif; ?>
+
+        <div class="today-empty-state <?= ($totalCount > 0 && empty($todayItems)) ? '' : 'd-none' ?>" id="todayAllDoneState">
+            <div class="empty-icon today-all-done-icon"><i class="fa-regular fa-circle-check"></i></div>
+            <h2>Đã hoàn thành hết việc hôm nay</h2>
+            <p>Mọi đầu việc trong ngày đã được xử lý gọn gàng.</p>
+            <button type="button" class="btn btn-primary-soft js-open-event-modal">
+                <i class="fa-solid fa-plus"></i>
+                <span>Thêm việc hôm nay</span>
+            </button>
+        </div>
+
+        <?php if (!empty($todayItems)): ?>
+            <div class="today-timeline-list" id="todayTimelineList">
+                <?php $lastIdx = count($todayItems) - 1; ?>
+                <?php foreach ($todayItems as $idx => $item):
+                    $id = (int)($item['id'] ?? 0);
+                    $isTask = !empty($item['is_task']);
+                    $isDone = !empty($item['done']);
+                    $isOverdue = !empty($item['is_overdue']) && !$isDone;
+                    $isCurrent = !empty($item['is_current']) && !$isDone;
+                    $isMultiday = !empty($item['is_multiday']);
+                    $timeLabel = trim((string)($item['time_label'] ?? 'Chưa gắn giờ'));
+                    $repeatType = (string)($item['repeat_type'] ?? 'none');
+                    $priority = (string)($item['priority'] ?? 'medium');
+                    $catName = trim((string)($item['category_name'] ?? ''));
+                    $catColor = trim((string)($item['category_color'] ?? '')) ?: '#c2410c';
+                    $location = trim((string)($item['location'] ?? ''));
+                ?>
+                <div class="task-row today-row <?= $idx === 0 ? 'is-first-visible' : '' ?> <?= $idx === $lastIdx ? 'is-last-visible' : '' ?> <?= $isDone ? 'is-done' : '' ?> <?= $isOverdue ? 'is-overdue' : '' ?> <?= $isCurrent ? 'is-current' : '' ?> <?= $isMultiday ? 'is-multiday' : '' ?>"
+                     data-id="<?= $id ?>"
+                     data-is-task="<?= $isTask ? '1' : '0' ?>"
+                     data-is-overdue="<?= !empty($item['is_overdue']) ? '1' : '0' ?>"
+                     data-status="<?= $isDone ? 'completed' : 'pending' ?>">
+
+                    <?php if ($isMultiday): ?>
+                        <span class="today-multiday-pin" aria-hidden="true"></span>
+                    <?php endif; ?>
+
+                    <label class="task-check-wrap" aria-label="Đánh dấu hoàn thành <?= htmlspecialchars($item['title'] ?? '') ?>">
+                        <input type="checkbox"
+                               class="task-check"
+                               data-id="<?= $id ?>"
+                               data-is-task="<?= $isTask ? '1' : '0' ?>"
+                               <?= $isDone ? 'checked' : '' ?>>
+                        <span class="custom-check"><i class="fa-solid fa-check"></i></span>
+                    </label>
+
+                    <div class="task-copy today-copy">
+                        <div class="today-title-line">
+                            <strong><?= htmlspecialchars($item['title'] ?? '') ?></strong>
+                            <?php if ($isCurrent): ?>
+                                <span class="today-pill is-current"><span class="live-dot"></span>Sắp diễn ra</span>
+                            <?php endif; ?>
+                            <?php if ($isOverdue): ?>
+                                <span class="today-pill is-overdue">Quá hạn</span>
+                            <?php endif; ?>
+                            <?php if ($isMultiday): ?>
+                                <span class="today-pill is-multiday"><i class="fa-solid fa-thumbtack"></i>Nhiều ngày</span>
+                            <?php endif; ?>
+                            <?php if (isset($repeatLabels[$repeatType])): ?>
+                                <span class="today-pill is-repeat"><i class="fa-solid fa-repeat"></i><?= $repeatLabels[$repeatType] ?></span>
+                            <?php endif; ?>
+                        </div>
+
+                        <div class="today-submeta">
+                            <span class="today-time-mono">
+                                <i class="fa-regular fa-clock"></i><?= htmlspecialchars($timeLabel !== '' ? $timeLabel : 'Chưa gắn giờ') ?>
+                            </span>
+                            <?php if ($catName !== ''): ?>
+                                <span class="today-meta-cat">
+                                    <span class="today-cat-dot" style="background-color: <?= htmlspecialchars($catColor) ?>;"></span>
+                                    <?= htmlspecialchars($catName) ?>
+                                </span>
+                            <?php endif; ?>
+                            <?php if ($location !== ''): ?>
+                                <span class="today-meta-loc">
+                                    <i class="fa-solid fa-location-dot"></i><?= htmlspecialchars($location) ?>
+                                </span>
+                            <?php endif; ?>
+                            <?php if (in_array($priority, ['urgent', 'high'], true) && isset($priorityLabels[$priority])): ?>
+                                <span class="priority <?= htmlspecialchars($priority) ?> today-priority-tag"><?= $priorityLabels[$priority] ?></span>
+                            <?php endif; ?>
+                        </div>
                     </div>
-                    <span class="event-tag <?= $event['color'] ?>"><?= htmlspecialchars($event['tag']) ?></span>
+
+                    <a class="today-item-open <?= $isTask ? '' : 'js-open-event-detail' ?>"
+                       href="<?= $isTask ? 'index.php?page=tasks&task_id=' . $id : '#event-' . $id ?>"
+                       <?php if (!$isTask): ?>data-event-id="<?= $id ?>"<?php endif; ?>
+                       aria-label="Xem chi tiết <?= htmlspecialchars($item['title'] ?? '') ?>"
+                       title="Chi tiết">
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </a>
                 </div>
                 <?php endforeach; ?>
-            <?php endif; ?>
-        </div>
-    </article>
-
-    <article class="panel chart-panel">
-        <div class="panel-heading">
-            <div><h2>Thống kê hoạt động</h2><p>Hiệu suất sự kiện trong tuần này</p></div>
-            <span class="select-chip">Tuần này</span>
-        </div>
-        <div class="chart-summary">
-            <strong><?= $data['weekly']['total'] ?? 0 ?></strong>
-            <span><i class="fa-solid fa-chart-simple"></i> Tổng số lịch trong tuần</span>
-        </div>
-        <div class="chart-wrap">
-            <canvas id="weeklyChart" 
-                    data-labels='<?= json_encode($data['weekly']['labels'] ?? []) ?>'
-                    data-completed='<?= json_encode($data['weekly']['completed'] ?? []) ?>'
-                    data-pending='<?= json_encode($data['weekly']['pending'] ?? []) ?>'></canvas>
-        </div>
-        <div class="chart-legend">
-            <span><i class="legend-dot completed"></i> Hoàn thành</span>
-            <span><i class="legend-dot pending"></i> Chưa hoàn thành</span>
-        </div>
-    </article>
+            </div>
+        <?php endif; ?>
+    </div>
 </section>
 
-<section class="dashboard-grid lower-grid">
-    <article class="panel task-panel">
-        <input type="hidden" id="dashboardCsrf" name="csrf_token" value="<?= htmlspecialchars($data['csrf_token'] ?? Auth::csrfToken()) ?>">
-        <div class="panel-heading">
-            <div><h2>Lịch trình & Việc cần làm</h2><p>Đừng để những việc quan trọng bị bỏ lỡ</p></div>
-            <a href="index.php?page=tasks" class="text-link">Tất cả <i class="fa-solid fa-arrow-right"></i></a>
-        </div>
-        <div class="task-list">
-            <?php if (empty($data['tasks'])): ?>
-                <div class="text-center py-4 text-muted">
-                    <i class="fa-solid fa-list-check fs-3 mb-2 d-block opacity-50"></i>
-                    <p class="mb-0">Chưa có công việc nào cần làm.</p>
-                </div>
-            <?php else: ?>
-                <?php foreach ($data['tasks'] as $task): ?>
-                <label class="task-row <?= $task['done'] ? 'is-done' : '' ?>" data-id="<?= $task['id'] ?>" data-is-task="<?= !empty($task['is_task']) ? '1' : '0' ?>" data-status="<?= $task['done'] ? 'completed' : 'pending' ?>">
-                    <input type="checkbox" <?= $task['done'] ? 'checked' : '' ?> class="task-check" data-id="<?= $task['id'] ?>" data-is-task="<?= !empty($task['is_task']) ? '1' : '0' ?>">
-                    <span class="custom-check"><i class="fa-solid fa-check"></i></span>
-                    <span class="task-copy">
-                        <strong><?= htmlspecialchars($task['title']) ?></strong>
-                        <small><i class="fa-regular fa-clock"></i> <?= $task['time'] ?></small>
-                    </span>
-                    <span class="priority <?= ($task['priority_key'] ?? '') === 'urgent' ? 'urgent' : (($task['priority_key'] ?? '') === 'high' ? 'high' : (($task['priority_key'] ?? '') === 'low' ? 'low' : 'medium')) ?>">
-                        <?= $task['priority'] ?>
-                    </span>
-                </label>
-                <?php endforeach; ?>
-            <?php endif; ?>
-        </div>
-    </article>
-
-    <article class="focus-card">
-        <div class="focus-card-top">
-            <span class="focus-label">Pomodoro</span>
-            <i class="fa-solid fa-stopwatch text-muted"></i>
-        </div>
-        <div>
-            <div class="focus-timer-preview">25:00</div>
-            <h2>Phiên làm việc tập trung</h2>
-            <p>Bắt đầu một chu kỳ 25 phút tập trung và 5 phút nghỉ ngắn</p>
-        </div>
-        <a href="index.php?page=pomodoro" class="btn btn-focus">Bắt đầu phiên <i class="fa-solid fa-arrow-right"></i></a>
-    </article>
-</section>
+<?php require_once __DIR__ . '/../partials/event_modals.php'; ?>
