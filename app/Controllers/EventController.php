@@ -585,6 +585,10 @@ class EventController
         $ok = $this->eventModel->updateTime($id, $userId, date('Y-m-d H:i:s', $startTs), date('Y-m-d H:i:s', $endTs));
         if ($ok) {
             Event::resetReminder($userId, $id);
+            // Đồng bộ trạng thái: nếu sự kiện trước đó ở quá khứ đã completed mà được dời đến hôm nay hoặc tương lai, tự động reset về pending để xuất hiện trên trang Hôm nay
+            if (($existing['status'] ?? '') === 'completed' && $startTs >= strtotime(date('Y-m-d 00:00:00'))) {
+                $this->eventModel->updateStatus($id, $userId, 'pending');
+            }
             echo json_encode([
                 'success'      => true,
                 'unread_count' => Notification::countUnread($userId),
